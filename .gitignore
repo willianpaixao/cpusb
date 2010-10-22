@@ -1,3 +1,7 @@
 .autotools
 .cproject
 .project
+required/autoconf/
+required/automake/
+required/confuse/
+required/libtool/

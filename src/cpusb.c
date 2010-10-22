@@ -5,21 +5,21 @@
  * \version 0.0001
  * \brief Yet do all.
  *
- * <p>An automatic synchronizer for removable media.</br>
- * Copyright (C) 2010 Willian Paixao <willian@ufpa.br></p>
+ * An automatic synchronizer for removable media.
+ * Copyright (C) 2010 Willian Paixao <willian@ufpa.br>
  * 
- * <p>This program is free software: you can redistribute it and/or modify
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.</p>
+ * (at your option) any later version.
  * 
- * <p>This program is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.</p>
+ * GNU General Public License for more details.
  *
- * <p>You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.</p>
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /**
@@ -186,10 +186,10 @@ find_file (const char *dir_path, const char *file)
  * \fn bool cmp_stat (const char *dir_path_dev, const char *dir_path_src, const char *file)
  * \brief Compare <code>m_time</code> of two files.
  * \details
- * <p>The <code>m_time in struct stat</code> defined in <code>bits/stat.h</code> 
+ * The <code>m_time in struct stat</code> defined in <code>bits/stat.h</code> 
  * included in <code>sys/stat.h</code>. The field provides the last modification time. 
  * The function returns true if the file has been modified <code>dir_path_dev</code> 
- * finally, false otherwise.</p>
+ * finally, false otherwise.
  *
  * \param dir_path_dev A folder on <i>device</i>
  * \param dir_path_src A folder on <i>source</i>
@@ -224,10 +224,10 @@ cmp_stat (const char *dir_path_dev, const char *dir_path_src, const char *file)
  * \fn int do_copy(const char *dir_path_dev, const char *dir_path_src, const char *origin_file)
  * \brief Performs the copy between the device and source.
  * \details
- * <p>Receiving a source and a destination directory, performs the copy in the 
+ * Receiving a source and a destination directory, performs the copy in the 
  * direction of the device to the source. First loading the file into a dynamic 
  * buffer size, creating the destination folder, if necessary, create or 
- * truncate the target file, copy and releases the buffer.</p>
+ * truncate the target file, copy and releases the buffer.
  *
  * \param dir_path_dev Directory path origin
  * \param dir_path_src Directory path end
@@ -318,9 +318,9 @@ do_copy(const char *dir_path_dev, const char *dir_path_src, const char *origin_f
  * \fn int main (int argc, char **argv)
  * \brief The main function.
  * \details
- * <p>The <code>main</code> function checks the arguments passed to cpusb as options and 
+ * The <code>main</code> function checks the arguments passed to cpusb as options and 
  * modes of synchronization. After collecting and processing arguments, other 
- * functions will be in charge of doing what was asked.</p>
+ * functions will be in charge of doing what was asked.
  *
  * \param argc Number of arguments
  * \param argv The arguments
