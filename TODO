@@ -1,0 +1,8 @@
+ o 8 Include libudev library for automatic detection od removible devices
+
+ o 6 Build .configure
+
+ o 4 Make a better Makefile
+
+ o 3 Write README e INSTALL
+
