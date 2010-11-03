@@ -22,17 +22,24 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-all: build
+all: build build-doc
 	@echo 'finished.'
 
 build:
 	mkdir build/
-	cd build/
-	gcc src/cpusb.c -o cpusb -l confuse -g
-	@echo 'cpusb build.'
-	cd ..
+	gcc src/cpusb.c -o build/cpusb -lconfuse -g
 
-clean:
+build-doc:
+	doxygen src/doc/doxyfile
+
+clean-build:
 	rm -rf build/
-	@echo 'cpusb clear.'
+	@echo 'build clean.'
 
+clean-doc:
+	rm -rf doc/
+	@echo 'documentation clean.'
+
+clean: clean-build clean-doc
+	rm -rf build/ doc/
+	@echo 'All cleaned.'

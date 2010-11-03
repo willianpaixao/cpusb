@@ -73,7 +73,7 @@ install_conf (const char *conf_path)
 
 	}
 
-	conf_file = fopen ("conf", "w+");
+	conf_file = fopen (".conf", "w+");
 	if (!conf_file)
 	{
 		printf ("cpusb: %s.\n", strerror (errno));
@@ -102,7 +102,7 @@ int
 read_option (const char *conf_path)
 {
 	char *init_dir;
-	int ok;
+	FILE *conf_file;
 	cfg_t *cfg;
 	cfg_opt_t opts[] = {
 		CFG_SIMPLE_STR ("device_path", &dev_path),
@@ -111,53 +111,110 @@ read_option (const char *conf_path)
 	};
 
 	init_dir = getcwd (NULL, 0);
-	chdir (conf_path);
+	if (chdir (conf_path))
+	{
+		if (mkdir (conf_path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
+			if (errno == EACCES)
+			{
+				printf ("cpusb: %s.\n", strerror (errno));
+				exit (EXIT_FAILURE);
+			}
+		if (chdir (conf_path))
+		{
+			printf ("cpusb: %s.\n", strerror (errno));
+			exit (EXIT_FAILURE);
+		}
+
+	}
+	conf_file = fopen (".conf", "a");
+	if (conf_file == NULL)
+	{
+		printf ("cpusb: %s.\n", strerror (errno));
+		exit (EXIT_FAILURE);
+	}
+	else
+		fclose (conf_file);
 	cfg = cfg_init (opts, 0);
-	cfg_parse (cfg, "conf");
+	cfg_parse (cfg, ".conf");
 	cfg_free(cfg);
+	chdir (init_dir);
+}
+
+char *
+handler_dir (const char * dir_path, const char *dir, unsigned int move)
+{
+	char *cur, *cwd;
+
+	cur = getcwd (NULL, 0);
+	chdir (dir_path);
+	
+	switch (move)
+	{
+		case 1:
+			chdir (".");
+			break;
+		case 2:
+			chdir ("..");
+			break;
+		case 3:
+			if (chdir (dir))
+			{
+				if (mkdir (dir, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
+					if (errno == EACCES)
+					{
+						printf ("cpusb: %s.\n", strerror (errno));
+						exit (EXIT_FAILURE);
+					}
+				if (chdir (dir))
+				{
+					printf ("cpusb: %s.\n", strerror (errno));
+					exit (EXIT_FAILURE);
+				}
+				
+			}
+			break;
+	}
+	cwd = getcwd (NULL, 0);
+	chdir (cur);
+
+	return cwd;
 }
 
 int
-read_dir (const char *dir_path)
+read_dir (const char *from_path, char *to_path)
 {
-	char catcd[PATH_MAX];
-	DIR *dir_cur;
+	char srcpath[PATH_MAX], *cwd;
+	DIR *dir = NULL;
 	struct dirent *entry;
 
-	strcat (catcd, src_path);
-	if (dir_cur = opendir (dir_path))
+	dir = opendir (from_path);
+	while ((entry = readdir (dir)) != NULL)
 	{
-		chdir (dir_path);
-		while (entry = readdir (dir_cur))
+		if (entry->d_type == DT_DIR)
 		{
-			if (entry->d_type == DT_REG)
+			if (!strcmp (entry->d_name, ".") || !strcmp (entry->d_name, ".."))
+				continue;
+			else
 			{
-				if (find_file (catcd, entry->d_name))
-				{
-					if (cmp_stat (dir_path, catcd, entry->d_name))
-						do_copy (dir_path, catcd, entry->d_name);
-					else
-						do_copy (catcd, dir_path, entry->d_name);
-				}
-				else
-					do_copy (dir_path, catcd, entry->d_name);
-			}
-			else if (entry->d_type == DT_DIR)
-			{
-				if ((strcmp (entry->d_name, "..") == 0) ||
-						(strcmp (entry->d_name, ".") == 0))
-					continue;
-				else
-				{
-					strcat (catcd, entry->d_name);
-					read_dir (entry->d_name);
-					closedir (dir_cur);
-					chdir ("..");
-				}
+				chdir (entry->d_name);
+				read_dir (getcwd (NULL, 0), handler_dir (to_path, entry->d_name, 3));
+				chdir ("..");
 			}
 		}
-		closedir (dir_cur);
+		else if (entry->d_type == DT_REG)
+		{
+			if (find_file (to_path, entry->d_name))
+			{
+				if (cmp_stat (from_path, to_path, entry->d_name))
+					do_copy (from_path, to_path, entry->d_name);
+				else
+					do_copy (to_path, from_path, entry->d_name);
+			}
+			else
+				do_copy (from_path, to_path, entry->d_name);
+		}
 	}
+	closedir (dir);
 }
 
 int
@@ -238,55 +295,48 @@ do_copy(const char *dir_path_dev, const char *dir_path_src, const char *origin_f
 {
 	FILE *file_dev;
 	FILE *file_src;
+	char *cwd;
 	int fd, ok;
 	__off_t file_size;
-	size_t mult, rest, cnt;
 	struct stat file_meta;
+	size_t mult, rest, cnt;
 
+	cwd = getcwd (NULL, 0);
 	chdir (dir_path_dev);
-	fd = open (origin_file, O_RDWR | O_APPEND | O_RSYNC);
+	fd = open (origin_file, O_RDONLY);
 	file_dev = fdopen (fd, "r");
 	fstat (fd, &file_meta);
 	file_size = file_meta.st_size;
-	if (file_size > 0)
+	
+	ok = chdir (dir_path_src);
+	if (ok)
 	{
-		mult = file_size / Kb;
-		rest = file_size % Kb;
-	}
-	else
-		exit (EXIT_FAILURE);
-
-	// If the file is heavier than a Mega(buffer size), 
-	// the buffer will contain pointers for space dinamically allocated.
-	if (file_size > Mb)
-	{
-		char *buf_index[Mb];
-
-		ok = chdir (dir_path_src);
-		if (ok)
+		if (errno == ENOENT)
 		{
-			if (errno == ENOENT)
-			{
-				ok = mkdir (dir_path_src, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-				if (ok == EOF)
-					if (errno == EACCES)
-					{
-						printf ("cpusb: %s.\n", strerror (errno));
-						exit (EXIT_FAILURE);
-					}
-				ok = chdir (dir_path_src);
-				if (ok)
+			ok = mkdir (dir_path_src, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+			if (ok)
+				if (errno == EACCES)
 				{
 					printf ("cpusb: %s.\n", strerror (errno));
 					exit (EXIT_FAILURE);
 				}
+			if (chdir (dir_path_src))
+			{
+				printf ("cpusb: %s.\n", strerror (errno));
+				exit (EXIT_FAILURE);
 			}
 		}
+	}
+	file_src = fopen (origin_file, "w");
 
-		file_src = fopen (origin_file, "w");
-		chmod (origin_file, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-		if (!file_src) printf("%d", file_src);
+	/* If the file is heavier than a Mega(buffer size),
+	 * the buffer will contain pointers for space dinamically allocated.*/
+	if (file_size > Mb)
+	{
+		char *buf_index[file_size / Kb + 1];
 
+		mult = file_size / Kb;
+		rest = file_size % Kb;
 		for(cnt = 0; cnt < mult;cnt++)
 		{
 			buf_index[cnt] = malloc (Kb);
@@ -307,11 +357,13 @@ do_copy(const char *dir_path_dev, const char *dir_path_src, const char *origin_f
 
 		buf_index = malloc (file_size);
 		fread (buf_index, file_size, 1, file_dev);
-		chdir (dir_path_src);
-		file_src = fopen (origin_file, "w");
 		fwrite (buf_index, file_size, 1, file_src);
 		free (buf_index);
 	}
+		close (fd);
+		fclose (file_dev);
+		fclose (file_src);
+		chdir (cwd);
 }
 
 /**
@@ -331,9 +383,9 @@ main (int argc, char **argv)
 {
 	char c;
 	// Folder containing the configuration file. Should be modified before compiling.
-	const char *conf_path = "/home/09080000601/.cpusb";
+	const char *conf_path = "/home/09080000601/cpusb/src";
 	// String with list of short options.
-	const char short_options = "i:Bh";
+	const char *short_options = "i:Bh";
 	int ok;
 	int option_index = 0;
 	// Options of arguments for cpusb.
@@ -352,7 +404,8 @@ main (int argc, char **argv)
 		read_option (conf_path);
 
 		// Starts copying.
-		read_dir (dev_path);
+		chdir (dev_path);
+		read_dir (dev_path, src_path);
 	}
 	// If there are arguments, do you job.
 	else
@@ -387,4 +440,3 @@ main (int argc, char **argv)
 		}
 	return (EXIT_SUCCESS);
 }
-
