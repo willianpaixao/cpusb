@@ -180,6 +180,19 @@ handler_dir (const char * dir_path, const char *dir, unsigned int move)
 	return cwd;
 }
 
+void
+report (const char *msg, int errno)
+{
+        printf ("cpusb: %s.\ncpusb: %s.\n", msg, strerror (errno));
+}
+
+void
+fatal (const char *msg, int errno)
+{
+        report (msg, errno);
+        exit (EXIT_FAILURE);
+}
+
 int
 read_dir (const char *from_path, char *to_path)
 {
