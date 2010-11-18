@@ -25,235 +25,207 @@
 /**
  * \headerfile cpusb.h
  * \brief Contains global variables and necessary libraries.
- *
  */
 #include "cpusb.h"
 
+
+        void
+report (const char *msg, int errno)
+{
+        printf ("cpusb: %s.\ncpusb: %d.\n", msg, strerror (errno));
+}
+
+
+        char *
+handler_dir (const char * dir_path, const char *dir, unsigned int move)
+{
+        char *cur, *cwd;
+
+        cur = getcwd (NULL, 0);
+        chdir (dir_path);
+
+        switch (move)
+        {
+                case 1:
+                        chdir (".");
+                        break;
+                case 2:
+                        chdir ("..");
+                        break;
+                case 3:
+                        if (chdir (dir))
+                        {
+                                if (errno == EACCES)
+                                        fatal ("Can't access the directory of configuration file", errno);
+                                else if (errno == ENOENT)
+                                {
+                                        if (mkdir (dir, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
+                                        {
+                                                if (errno == EACCES)
+                                                        fatal ("Can't access the directory of configuration file", errno);
+                                                //else if (errno == EROFS)
+                                        }
+                                        else
+                                                chdir (dir);
+                                }
+
+                        }
+                        break;
+        }
+        cwd = getcwd (NULL, 0);
+        chdir (cur);
+
+        return cwd;
+}
+
 /**
- * \fn int install_conf (const char *conf_path)
+ * \brief Open and read the configuration file.
+ * \details
+ * Get <code>conf_path</code>, open and read
+ * the settings file, collecting user options.
+ *
+ * \param conf_path Path of configuration file
+ * \return Not implemented yet
+ */
+        int
+read_option (const char *conf_path)
+{
+        char *init_dir;
+        FILE *conf_file;
+        cfg_t *cfg;
+        cfg_opt_t opts[] = {
+                CFG_SIMPLE_STR ("device_path", &dev_path),
+                CFG_SIMPLE_STR ("source_path", &src_path),
+                CFG_END()
+        };
+
+        init_dir = getcwd (NULL, 0);
+        if (chdir (conf_path))
+        {
+                if (errno == EACCES)
+                        fatal ("Can't access the directory of configuration file", errno);
+                else if (errno == ENOENT)
+                {
+                        if (mkdir (conf_path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
+                        {
+                                if (errno == EACCES)
+                                        fatal ("Can't access the directory of configuration file", errno);
+                                //else if (errno == EROFS)
+                        }
+                        else
+                                chdir (conf_path);
+                }
+
+        }
+        conf_file = fopen (".conf", "a");
+        if (!conf_file)
+                fatal ("Can't open configuration file", errno);
+        else
+                fclose (conf_file);
+        cfg = cfg_init (opts, 0);
+        cfg_parse (cfg, ".conf");
+        cfg_free(cfg);
+        chdir (init_dir);
+}
+
+/**
  * \brief
  * \detals
  * \param conf_path
  * \return 
  */
-int
+        int
 install_conf (const char *conf_path)
 {
-	char *init_dir;
-	int ok;
+        char *init_dir;
 
-	init_dir = getcwd (NULL, 0);
-	ok = chdir (conf_path);
-	if (ok)
-	{
-		if (errno == EACCES)
-		{
-			printf ("cpusb: %s.\n", strerror (errno));
-			exit (EXIT_FAILURE);
-		}
-		else if (errno == ENOENT)
-		{
-			ok = mkdir (conf_path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-			if (ok)
-			{
-				if (errno == EACCES)
-				{
-					printf ("cpusb: %s.\n", strerror (errno));
-					exit (EXIT_FAILURE);
-				}
-				else if (errno == EROFS)
-				{
-					printf ("cpusb: %s.\n", strerror (errno));
-					exit (EXIT_FAILURE);
-				}
-			}
-			else
-				chdir (conf_path);
-		}
+        init_dir = getcwd (NULL, 0); 
+        handler_dir (conf_path, NULL, 3);
+        conf_file = fopen (".conf", "w+");
+        if (!conf_file)
+                fatal ("Can't open the configuration file", errno);
 
-	}
+        printf ("Device directory: ");
+        scanf ("%s", &dev_path);
+        fprintf (conf_file, "device_path = %s\n", dev_path);
 
-	conf_file = fopen (".conf", "w+");
-	if (!conf_file)
-	{
-		printf ("cpusb: %s.\n", strerror (errno));
-		exit (EXIT_FAILURE);
-	}
+        printf ("Destination directory: ");
+        scanf ("%s", &src_path);
+        fprintf (conf_file, "source_path = %s\n", src_path);
 
-	printf ("Device directory: ");
-	scanf ("%s", &dev_path);
-	fprintf (conf_file, "device_path = %s\n", dev_path);
+        chdir (init_dir);	
 
-	printf ("Destination directory: ");
-	scanf ("%s", &src_path);
-	fprintf (conf_file, "source_path = %s\n", src_path);
-
-	chdir (init_dir);	
-
-	if (ferror (conf_file))
-		return (EXIT_FAILURE);
-	else if (!fclose (conf_file))
-		return (EXIT_FAILURE);
-	else
-		return (EXIT_SUCCESS);
+        if (!fclose (conf_file))
+                report ("Configuration file was closed with error", errno);
 }
 
-int
-read_option (const char *conf_path)
-{
-	char *init_dir;
-	FILE *conf_file;
-	cfg_t *cfg;
-	cfg_opt_t opts[] = {
-		CFG_SIMPLE_STR ("device_path", &dev_path),
-		CFG_SIMPLE_STR ("source_path", &src_path),
-		CFG_END()
-	};
-
-	init_dir = getcwd (NULL, 0);
-	if (chdir (conf_path))
-	{
-		if (mkdir (conf_path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
-			if (errno == EACCES)
-			{
-				printf ("cpusb: %s.\n", strerror (errno));
-				exit (EXIT_FAILURE);
-			}
-		if (chdir (conf_path))
-		{
-			printf ("cpusb: %s.\n", strerror (errno));
-			exit (EXIT_FAILURE);
-		}
-
-	}
-	conf_file = fopen (".conf", "a");
-	if (conf_file == NULL)
-	{
-		printf ("cpusb: %s.\n", strerror (errno));
-		exit (EXIT_FAILURE);
-	}
-	else
-		fclose (conf_file);
-	cfg = cfg_init (opts, 0);
-	cfg_parse (cfg, ".conf");
-	cfg_free(cfg);
-	chdir (init_dir);
-}
-
-char *
-handler_dir (const char * dir_path, const char *dir, unsigned int move)
-{
-	char *cur, *cwd;
-
-	cur = getcwd (NULL, 0);
-	chdir (dir_path);
-	
-	switch (move)
-	{
-		case 1:
-			chdir (".");
-			break;
-		case 2:
-			chdir ("..");
-			break;
-		case 3:
-			if (chdir (dir))
-			{
-				if (mkdir (dir, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
-					if (errno == EACCES)
-					{
-						printf ("cpusb: %s.\n", strerror (errno));
-						exit (EXIT_FAILURE);
-					}
-				if (chdir (dir))
-				{
-					printf ("cpusb: %s.\n", strerror (errno));
-					exit (EXIT_FAILURE);
-				}
-				
-			}
-			break;
-	}
-	cwd = getcwd (NULL, 0);
-	chdir (cur);
-
-	return cwd;
-}
-
-void
-report (const char *msg, int errno)
-{
-        printf ("cpusb: %s.\ncpusb: %s.\n", msg, strerror (errno));
-}
-
-void
+        void
 fatal (const char *msg, int errno)
 {
         report (msg, errno);
         exit (EXIT_FAILURE);
 }
 
-int
+        int
 read_dir (const char *from_path, char *to_path)
 {
-	char srcpath[PATH_MAX], *cwd;
-	DIR *dir = NULL;
-	struct dirent *entry;
+        char srcpath[PATH_MAX], *cwd;
+        DIR *dir = NULL;
+        struct dirent *entry;
 
-	dir = opendir (from_path);
-	while ((entry = readdir (dir)) != NULL)
-	{
-		if (entry->d_type == DT_DIR)
-		{
-			if (!strcmp (entry->d_name, ".") || !strcmp (entry->d_name, ".."))
-				continue;
-			else
-			{
-				chdir (entry->d_name);
-				read_dir (getcwd (NULL, 0), handler_dir (to_path, entry->d_name, 3));
-				chdir ("..");
-			}
-		}
-		else if (entry->d_type == DT_REG)
-		{
-			if (find_file (to_path, entry->d_name))
-			{
-				if (cmp_stat (from_path, to_path, entry->d_name))
-					do_copy (from_path, to_path, entry->d_name);
-				else
-					do_copy (to_path, from_path, entry->d_name);
-			}
-			else
-				do_copy (from_path, to_path, entry->d_name);
-		}
-	}
-	closedir (dir);
+        dir = opendir (from_path);
+        while ((entry = readdir (dir)) != NULL)
+        {
+                if (entry->d_type == DT_DIR)
+                {
+                        if (!strcmp (entry->d_name, ".") || !strcmp (entry->d_name, ".."))
+                                continue;
+                        else
+                        {
+                                chdir (entry->d_name);
+                                read_dir (getcwd (NULL, 0), handler_dir (to_path, entry->d_name, 3));
+                                chdir ("..");
+                        }
+                }
+                else if (entry->d_type == DT_REG)
+                {
+                        if (find_file (to_path, entry->d_name))
+                        {
+                                if (cmp_stat (from_path, to_path, entry->d_name))
+                                        do_copy (from_path, to_path, entry->d_name);
+                                else
+                                        do_copy (to_path, from_path, entry->d_name);
+                        }
+                        else
+                                do_copy (from_path, to_path, entry->d_name);
+                }
+        }
+        closedir (dir);
 }
 
-int
+        int
 find_file (const char *dir_path, const char *file)
 {
-	DIR *dir_cur;
-	int ret = 0;
-	struct dirent *entry;
+        DIR *dir_cur;
+        int ret = 0;
+        struct dirent *entry;
 
-	if (dir_cur = opendir (dir_path))
-	{
-		while (entry = readdir (dir_cur))
-		{
-			if (!strcmp (entry->d_name, file))
-			{
-				ret = 1;
-				break;
-			}
-		}
-		closedir (dir_cur);
-		return ret;
-	}
+        if (dir_cur = opendir (dir_path))
+        {
+                while (entry = readdir (dir_cur))
+                {
+                        if (!strcmp (entry->d_name, file))
+                        {
+                                ret = 1;
+                                break;
+                        }
+                }
+                closedir (dir_cur);
+                return ret;
+        }
 }
 
 /**
- * \fn bool cmp_stat (const char *dir_path_dev, const char *dir_path_src, const char *file)
  * \brief Compare <code>m_time</code> of two files.
  * \details
  * The <code>m_time in struct stat</code> defined in <code>bits/stat.h</code> 
@@ -267,31 +239,30 @@ find_file (const char *dir_path, const char *file)
  * the same file in different folders.
  * \return m_time True if file <code>dir_path_dev</code> is the newest, false otherwise.
  */
-int
+        int
 cmp_stat (const char *dir_path_dev, const char *dir_path_src, const char *file)
 {
-	char *root_dir;
-	int fd_dev, fd_src, m_time;
-	struct stat file_meta_dev, file_meta_src;
+        char *root_dir;
+        int fd_dev, fd_src, m_time;
+        struct stat file_meta_dev, file_meta_src;
 
-	root_dir = getcwd (NULL, 0);
-	chdir (dir_path_dev);
-	fd_dev = open (file, O_RDWR | O_APPEND | O_RSYNC);
-	fstat (fd_dev, &file_meta_dev);
-	chdir (dir_path_src);
-	fd_src = open (file, O_RDWR | O_APPEND | O_RSYNC);
-	fstat (fd_src, &file_meta_src);
-	chdir (root_dir);
-	if (file_meta_dev.st_mtime > file_meta_src.st_mtime)
-		m_time = 1;
-	else
-		m_time = 0;
+        root_dir = getcwd (NULL, 0);
+        chdir (dir_path_dev);
+        fd_dev = open (file, O_RDWR | O_APPEND | O_RSYNC);
+        fstat (fd_dev, &file_meta_dev);
+        chdir (dir_path_src);
+        fd_src = open (file, O_RDWR | O_APPEND | O_RSYNC);
+        fstat (fd_src, &file_meta_src);
+        chdir (root_dir);
+        if (file_meta_dev.st_mtime > file_meta_src.st_mtime)
+                m_time = 1;
+        else
+                m_time = 0;
 
-	return m_time;
+        return m_time;
 }
 
 /**
- * \fn int do_copy(const char *dir_path_dev, const char *dir_path_src, const char *origin_file)
  * \brief Performs the copy between the device and source.
  * \details
  * Receiving a source and a destination directory, performs the copy in the 
@@ -303,84 +274,83 @@ cmp_stat (const char *dir_path_dev, const char *dir_path_src, const char *file)
  * \param dir_path_src Directory path end
  * \param origin_file File to be copied
  **/
-int
+        int
 do_copy(const char *dir_path_dev, const char *dir_path_src, const char *origin_file)
 {
-	FILE *file_dev;
-	FILE *file_src;
-	char *cwd;
-	int fd, ok;
-	__off_t file_size;
-	struct stat file_meta;
-	size_t mult, rest, cnt;
+        FILE *file_dev;
+        FILE *file_src;
+        char *cwd;
+        int fd, ok;
+        __off_t file_size;
+        struct stat file_meta;
+        size_t mult, rest, cnt;
 
-	cwd = getcwd (NULL, 0);
-	chdir (dir_path_dev);
-	fd = open (origin_file, O_RDONLY);
-	file_dev = fdopen (fd, "r");
-	fstat (fd, &file_meta);
-	file_size = file_meta.st_size;
-	
-	ok = chdir (dir_path_src);
-	if (ok)
-	{
-		if (errno == ENOENT)
-		{
-			ok = mkdir (dir_path_src, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-			if (ok)
-				if (errno == EACCES)
-				{
-					printf ("cpusb: %s.\n", strerror (errno));
-					exit (EXIT_FAILURE);
-				}
-			if (chdir (dir_path_src))
-			{
-				printf ("cpusb: %s.\n", strerror (errno));
-				exit (EXIT_FAILURE);
-			}
-		}
-	}
-	file_src = fopen (origin_file, "w");
+        cwd = getcwd (NULL, 0);
+        chdir (dir_path_dev);
+        fd = open (origin_file, O_RDONLY);
+        file_dev = fdopen (fd, "r");
+        fstat (fd, &file_meta);
+        file_size = file_meta.st_size;
 
-	/* If the file is heavier than a Mega(buffer size),
-	 * the buffer will contain pointers for space dinamically allocated.*/
-	if (file_size > Mb)
-	{
-		char *buf_index[file_size / Kb + 1];
+        ok = chdir (dir_path_src);
+        if (ok)
+        {
+                if (errno == ENOENT)
+                {
+                        ok = mkdir (dir_path_src, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+                        if (ok)
+                                if (errno == EACCES)
+                                {
+                                        printf ("cpusb: %s.\n", strerror (errno));
+                                        exit (EXIT_FAILURE);
+                                }
+                        if (chdir (dir_path_src))
+                        {
+                                printf ("cpusb: %s.\n", strerror (errno));
+                                exit (EXIT_FAILURE);
+                        }
+                }
+        }
+        file_src = fopen (origin_file, "w");
 
-		mult = file_size / Kb;
-		rest = file_size % Kb;
-		for(cnt = 0; cnt < mult;cnt++)
-		{
-			buf_index[cnt] = malloc (Kb);
-			setvbuf (file_src, buf_index[cnt], _IOFBF, Kb);
-			fread (buf_index[cnt], Kb, 1, file_dev);
-			fwrite (buf_index[cnt], Kb, 1, file_src);
-			free (buf_index[cnt]);
-		}
-		buf_index[++cnt] = malloc (rest);
-		setvbuf (file_src, buf_index[cnt], _IOFBF, rest);
-		fread (buf_index[cnt], rest, 1, file_dev);
-		fwrite (buf_index[cnt], rest, 1, file_src);
-		free (buf_index[cnt]);
-	}
-	else
-	{
-		char *buf_index;
+        /* If the file is heavier than a Mega(buffer size),
+         * the buffer will contain pointers for space dinamically allocated.*/
+        if (file_size > Kb)
+        {
+                char *buf_index[file_size / Kb + 1];
 
-		buf_index = malloc (file_size);
-		fread (buf_index, file_size, 1, file_dev);
-		fwrite (buf_index, file_size, 1, file_src);
-		free (buf_index);
-	}
-		close (fd);
-		fclose (file_dev);
-		fclose (file_src);
-		chdir (cwd);
+                mult = file_size / Kb;
+                rest = file_size % Kb;
+                for(cnt = 0; cnt < mult;cnt++)
+                {
+                        buf_index[cnt] = malloc (Kb);
+                        setvbuf (file_src, buf_index[cnt], _IOFBF, Kb);
+                        fread (buf_index[cnt], Kb, 1, file_dev);
+                        fwrite (buf_index[cnt], Kb, 1, file_src);
+                        free (buf_index[cnt]);
+                }
+                buf_index[++cnt] = malloc (rest);
+                setvbuf (file_src, buf_index[cnt], _IOFBF, rest);
+                fread (buf_index[cnt], rest, 1, file_dev);
+                fwrite (buf_index[cnt], rest, 1, file_src);
+                free (buf_index[cnt]);
+        }
+        else
+        {
+                char *buf_index;
+
+                buf_index = malloc (file_size);
+                fread (buf_index, file_size, 1, file_dev);
+                fwrite (buf_index, file_size, 1, file_src);
+                free (buf_index);
+        }
+        close (fd);
+        fclose (file_dev);
+        fclose (file_src);
+        chdir (cwd);
 }
 
 /**
- * \fn int main (int argc, char **argv)
  * \brief The main function.
  * \details
  * The <code>main</code> function checks the arguments passed to cpusb as options and 
@@ -391,65 +361,65 @@ do_copy(const char *dir_path_dev, const char *dir_path_src, const char *origin_f
  * \param argv The arguments
  * \return EXIT_SUCCESS if completed correctly
  */
-int
+        int
 main (int argc, char **argv)
 {
-	char c;
-	// Folder containing the configuration file. Should be modified before compiling.
-	const char *conf_path = "/home/09080000601/cpusb/src";
-	// String with list of short options.
-	const char *short_options = "i:Bh";
-	int ok;
-	int option_index = 0;
-	// Options of arguments for cpusb.
-	static struct option long_options[]=
-	{
-		{"background", no_argument, NULL, 'B'},
-		{"help", no_argument, NULL, 'h'},
-		{"install", optional_argument, NULL, 'i'},
-		{NULL, 0, NULL, 0}
-	};
+        char c;
+        // Folder containing the configuration file. Should be modified before compiling.
+        const char *conf_path = "/home/willian/devel/cpusb/src";
+        // String with list of short options.
+        const char *short_options = "i:Bh";
+        int ok;
+        int option_index = 0;
+        // Options of arguments for cpusb.
+        static struct option long_options[]=
+        {
+                {"background", no_argument, NULL, 'B'},
+                {"help", no_argument, NULL, 'h'},
+                {"install", optional_argument, NULL, 'i'},
+                {NULL, 0, NULL, 0}
+        };
 
-	// If no arguments, just run.
-	if (argc == 1)
-	{
-		// Reads the options of configuration file.
-		read_option (conf_path);
+        // If no arguments, just run.
+        if (argc == 1)
+        {
+                // Reads the options of configuration file.
+                read_option (conf_path);
 
-		// Starts copying.
-		chdir (dev_path);
-		read_dir (dev_path, src_path);
-	}
-	// If there are arguments, do you job.
-	else
-		// The loop should run until end arguments.
-		while ((c = (char) getopt_long (argc, argv, short_options, long_options, &option_index)) != -1)
-		{
-			option_index = 0;
-			switch (c)
-			{
-				case 'B':
-					// TODO: All background.
-					printf("Running in background.\n");
-					break;
+                // Starts copying.
+                chdir (dev_path);
+                read_dir (dev_path, src_path);
+        }
+        // If there are arguments, do you job.
+        else
+                // The loop should run until end arguments.
+                while ((c = (char) getopt_long (argc, argv, short_options, long_options, &option_index)) != -1)
+                {
+                        option_index = 0;
+                        switch (c)
+                        {
+                                case 'B':
+                                        // TODO: All background.
+                                        printf("Running in background.\n");
+                                        break;
 
-				case 'h':
-					// TODO: All help.
-					printf("--help\n");
-					break;
+                                case 'h':
+                                        // TODO: All help.
+                                        printf("--help\n");
+                                        break;
 
-				case 'i':
-					// TODO: It is poor. Improve it.
-					if (optarg)
-						install_conf(optarg);
-					else
-						install_conf(conf_path);
-					break;
+                                case 'i':
+                                        // TODO: It is poor. Improve it.
+                                        if (optarg)
+                                                install_conf(optarg);
+                                        else
+                                                install_conf(conf_path);
+                                        break;
 
-				default:
-					// TODO: There should be an error handling.
-					break;
-			}
-		}
-	return (EXIT_SUCCESS);
+                                default:
+                                        // TODO: There should be an error handling.
+                                        break;
+                        }
+                }
+        return (EXIT_SUCCESS);
 }

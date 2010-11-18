@@ -27,10 +27,12 @@ all: build build-doc
 
 build:
 	mkdir build/
-	gcc src/cpusb.c -o build/cpusb -lconfuse -g
+	gcc src/cpusb.c -o build/cpusb -lconfuse -g -pass-exit-codes
 
 build-doc:
-	doxygen src/doc/doxyfile
+	cd src/
+	doxygen src/doxyfile
+	cd ../
 
 clean-build:
 	rm -rf build/
@@ -41,5 +43,4 @@ clean-doc:
 	@echo 'documentation clean.'
 
 clean: clean-build clean-doc
-	rm -rf build/ doc/
 	@echo 'All cleaned.'

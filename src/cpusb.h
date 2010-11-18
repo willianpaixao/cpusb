@@ -39,9 +39,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-// Length of Kilo and Mega byte.
+// Length of Kilo byte.
 #define Kb 1024
-#define Mb 1048576
 
 // The configuration file.
 FILE *conf_file;
@@ -49,5 +48,7 @@ FILE *conf_file;
 // The path of directories of device and source.
 char *dev_path;
 char *src_path;
+
+//Funtions signatures
 
 #endif /* CPUSB_H_ */
