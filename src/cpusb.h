@@ -37,8 +37,8 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <string.h>
 #include <unistd.h>
-
 // Length of Kilo byte.
 #define Kb 1024
 

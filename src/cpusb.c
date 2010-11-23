@@ -1,10 +1,5 @@
 /**
- * \author "Willian Paixao" <willian@ufpa.br>
- * \date 2010-05-17
- * \file cpusb.c
- * \version 0.0001
- * \brief Yet do all.
- *
+ * \mainpage
  * An automatic synchronizer for removable media.
  * Copyright (C) 2010 Willian Paixao <willian@ufpa.br>
  * 
@@ -23,54 +18,77 @@
  */
 
 /**
+ * \file cpusb.c
+ * \author "Willian Paixao" <willian@ufpa.br>
+ * \date 2010-05-17
+ * \version 0.0001
+ * \brief Yet do all.
+ */
+
+/**
  * \headerfile cpusb.h
  * \brief Contains global variables and necessary libraries.
  */
 #include "cpusb.h"
 
-
-        void
-report (const char *msg, int errno)
+/**
+ * \brief Print error messages, like warnings.
+ * \details
+ * Prints simple messages, but don't exit the program.
+ *
+ * \var msg Message to be printed
+ */
+void
+report (const char *msg, const int err)
 {
-        printf ("cpusb: %s.\ncpusb: %d.\n", msg, strerror (errno));
+        printf ("cpusb: %s.\ncpusb: %s.\n", msg, strerror (err));
 }
 
+/**
+ * \brief Print error message and exit the program.
+ * \details
+ * For error that can't be handled, fatal is call for prints the message abd 
+ * close the program.
+ *
+ * \var msg Message to be printed
+ */
+void
+fatal (const char *msg, const int err)
+{
+        report (msg, err);
+        exit (EXIT_FAILURE);
+}
 
-        char *
-handler_dir (const char * dir_path, const char *dir, unsigned int move)
+/**
+ * \brief Change the current directory, make it if no exist.
+ * \details
+ * Some functions needs to change the current directory,
+ * <code>cwdir</code> turns it more flexible and centralied.
+ * If the destination directory no exist, is created.
+ * \param dir_cur the base directory
+ * \param dir the target, can be created
+ * \return <code>dir</code>, the target directory
+ */
+char *                                                        
+cwdir (const char *dir_cur, const char *dir)
 {
         char *cur, *cwd;
 
         cur = getcwd (NULL, 0);
-        chdir (dir_path);
+        chdir (dir_cur);
 
-        switch (move)
+        if (chdir (dir))
         {
-                case 1:
-                        chdir (".");
-                        break;
-                case 2:
-                        chdir ("..");
-                        break;
-                case 3:
-                        if (chdir (dir))
-                        {
-                                if (errno == EACCES)
-                                        fatal ("Can't access the directory of configuration file", errno);
-                                else if (errno == ENOENT)
-                                {
-                                        if (mkdir (dir, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
-                                        {
-                                                if (errno == EACCES)
-                                                        fatal ("Can't access the directory of configuration file", errno);
-                                                //else if (errno == EROFS)
-                                        }
-                                        else
-                                                chdir (dir);
-                                }
+                if (errno == EACCES)
+                        fatal ("Can't access the directory", errno);
+                else if (errno == ENOENT)
+                {
+                        if (mkdir (dir, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
+                                fatal ("Can't access the directory of configuration file", errno);
+                        else
+                                chdir (dir);
+                }
 
-                        }
-                        break;
         }
         cwd = getcwd (NULL, 0);
         chdir (cur);
@@ -87,10 +105,10 @@ handler_dir (const char * dir_path, const char *dir, unsigned int move)
  * \param conf_path Path of configuration file
  * \return Not implemented yet
  */
-        int
+int
 read_option (const char *conf_path)
 {
-        char *init_dir;
+        char *cwd;
         FILE *conf_file;
         cfg_t *cfg;
         cfg_opt_t opts[] = {
@@ -99,7 +117,7 @@ read_option (const char *conf_path)
                 CFG_END()
         };
 
-        init_dir = getcwd (NULL, 0);
+        cwd = getcwd (NULL, 0);
         if (chdir (conf_path))
         {
                 if (errno == EACCES)
@@ -110,7 +128,6 @@ read_option (const char *conf_path)
                         {
                                 if (errno == EACCES)
                                         fatal ("Can't access the directory of configuration file", errno);
-                                //else if (errno == EROFS)
                         }
                         else
                                 chdir (conf_path);
@@ -125,7 +142,15 @@ read_option (const char *conf_path)
         cfg = cfg_init (opts, 0);
         cfg_parse (cfg, ".conf");
         cfg_free(cfg);
-        chdir (init_dir);
+        if (chdir (dev_path))
+                if (errno == ENOENT)
+                        if (mkdir (dev_path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
+                                fatal ("Can't access the device directory", errno);
+        if (chdir (src_path))
+                if (errno == ENOENT)
+                        if (mkdir (src_path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
+                                fatal ("Can't access the source directory", errno);
+        chdir (cwd);
 }
 
 /**
@@ -134,13 +159,13 @@ read_option (const char *conf_path)
  * \param conf_path
  * \return 
  */
-        int
+int
 install_conf (const char *conf_path)
 {
-        char *init_dir;
+        char *cwd;
 
-        init_dir = getcwd (NULL, 0); 
-        handler_dir (conf_path, NULL, 3);
+        cwd = getcwd (NULL, 0); 
+        cwdir (conf_path, NULL);
         conf_file = fopen (".conf", "w+");
         if (!conf_file)
                 fatal ("Can't open the configuration file", errno);
@@ -153,20 +178,13 @@ install_conf (const char *conf_path)
         scanf ("%s", &src_path);
         fprintf (conf_file, "source_path = %s\n", src_path);
 
-        chdir (init_dir);	
+        chdir (cwd);	
 
         if (!fclose (conf_file))
                 report ("Configuration file was closed with error", errno);
 }
 
-        void
-fatal (const char *msg, int errno)
-{
-        report (msg, errno);
-        exit (EXIT_FAILURE);
-}
-
-        int
+int
 read_dir (const char *from_path, char *to_path)
 {
         char srcpath[PATH_MAX], *cwd;
@@ -183,7 +201,7 @@ read_dir (const char *from_path, char *to_path)
                         else
                         {
                                 chdir (entry->d_name);
-                                read_dir (getcwd (NULL, 0), handler_dir (to_path, entry->d_name, 3));
+                                read_dir (getcwd (NULL, 0), cwdir (to_path, entry->d_name));
                                 chdir ("..");
                         }
                 }
@@ -274,17 +292,17 @@ cmp_stat (const char *dir_path_dev, const char *dir_path_src, const char *file)
  * \param dir_path_src Directory path end
  * \param origin_file File to be copied
  **/
-        int
+int
 do_copy(const char *dir_path_dev, const char *dir_path_src, const char *origin_file)
 {
         FILE *file_dev;
         FILE *file_src;
+        char *buf;
         char *cwd;
         int fd, ok;
         __off_t file_size;
         struct stat file_meta;
         size_t mult, rest, cnt;
-
         cwd = getcwd (NULL, 0);
         chdir (dir_path_dev);
         fd = open (origin_file, O_RDONLY);
@@ -292,58 +310,41 @@ do_copy(const char *dir_path_dev, const char *dir_path_src, const char *origin_f
         fstat (fd, &file_meta);
         file_size = file_meta.st_size;
 
-        ok = chdir (dir_path_src);
-        if (ok)
-        {
+        if (chdir (dir_path_src))
                 if (errno == ENOENT)
-                {
-                        ok = mkdir (dir_path_src, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-                        if (ok)
-                                if (errno == EACCES)
-                                {
-                                        printf ("cpusb: %s.\n", strerror (errno));
-                                        exit (EXIT_FAILURE);
-                                }
-                        if (chdir (dir_path_src))
-                        {
-                                printf ("cpusb: %s.\n", strerror (errno));
-                                exit (EXIT_FAILURE);
-                        }
-                }
-        }
+                        if (mkdir (dir_path_src, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
+                                if (chdir (dir_path_src))
+                                        fatal ("Can't access the source directory", errno);
         file_src = fopen (origin_file, "w");
 
         /* If the file is heavier than a Mega(buffer size),
          * the buffer will contain pointers for space dinamically allocated.*/
         if (file_size > Kb)
         {
-                char *buf_index[file_size / Kb + 1];
-
                 mult = file_size / Kb;
                 rest = file_size % Kb;
                 for(cnt = 0; cnt < mult;cnt++)
                 {
-                        buf_index[cnt] = malloc (Kb);
-                        setvbuf (file_src, buf_index[cnt], _IOFBF, Kb);
-                        fread (buf_index[cnt], Kb, 1, file_dev);
-                        fwrite (buf_index[cnt], Kb, 1, file_src);
-                        free (buf_index[cnt]);
+                        buf = malloc (Kb);
+                        //setvbuf (file_src, buf, _IOFBF, Kb);
+                        fread (buf, Kb, 1, file_dev);
+                        fwrite (buf, Kb, 1, file_src);
+                        free (buf);
                 }
-                buf_index[++cnt] = malloc (rest);
-                setvbuf (file_src, buf_index[cnt], _IOFBF, rest);
-                fread (buf_index[cnt], rest, 1, file_dev);
-                fwrite (buf_index[cnt], rest, 1, file_src);
-                free (buf_index[cnt]);
+                buf = malloc (rest);
+                //setvbuf (file_src, buf_index, _IOFBF, rest);
+                fread (buf, rest, 1, file_dev);
+                fwrite (buf, rest, 1, file_src);
+                free (buf);
         }
         else
         {
-                char *buf_index;
-
-                buf_index = malloc (file_size);
-                fread (buf_index, file_size, 1, file_dev);
-                fwrite (buf_index, file_size, 1, file_src);
-                free (buf_index);
+                buf = malloc (file_size);
+                fread (buf, file_size, 1, file_dev);
+                fwrite (buf, file_size, 1, file_src);
+                free (buf);
         }
+
         close (fd);
         fclose (file_dev);
         fclose (file_src);

@@ -30,9 +30,7 @@ build:
 	gcc src/cpusb.c -o build/cpusb -lconfuse -g -pass-exit-codes
 
 build-doc:
-	cd src/
-	doxygen src/doxyfile
-	cd ../
+	doxygen doxyfile
 
 clean-build:
 	rm -rf build/
