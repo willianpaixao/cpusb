@@ -1,4 +1,1 @@
-.autotools
-.cproject
-.project
-required/
+*.swp
