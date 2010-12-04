@@ -1,4 +1,12 @@
 /**
+ * \file cpusb.c
+ * \author "Willian Paixao" <willian@ufpa.br>
+ * \date 2010-05-17
+ * \version 0.0001
+ * \brief Yet do all.
+ */
+
+/**
  * \mainpage
  * An automatic synchronizer for removable media.
  * Copyright (C) 2010 Willian Paixao <willian@ufpa.br>
@@ -17,19 +25,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/**
- * \file cpusb.c
- * \author "Willian Paixao" <willian@ufpa.br>
- * \date 2010-05-17
- * \version 0.0001
- * \brief Yet do all.
- */
+// The includes of life.
+#include <confuse.h>
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <getopt.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <string.h>
+#include <unistd.h>
 
-/**
- * \headerfile cpusb.h
- * \brief Contains global variables and necessary libraries.
- */
-#include "cpusb.h"
+// Length of Kilo byte.
+#define Kb 1024
+
+// The path of directories of device and source.
+char *dev_path;
+char *src_path;
 
 /**
  * \brief Print error messages, like warnings.
@@ -37,6 +52,7 @@
  * Prints simple messages, but don't exit the program.
  *
  * \var msg Message to be printed
+ * \var err Recieve <code>errno<\code> from <code>errno.h<\code>
  */
 void
 report (const char *msg, const int err)
@@ -47,7 +63,7 @@ report (const char *msg, const int err)
 /**
  * \brief Print error message and exit the program.
  * \details
- * For error that can't be handled, fatal is call for prints the message abd 
+ * For error that can't be handled, fatal is call for prints the message and
  * close the program.
  *
  * \var msg Message to be printed
@@ -75,16 +91,17 @@ cwdir (const char *dir_cur, const char *dir)
         char *cur, *cwd;
 
         cur = getcwd (NULL, 0);
-        chdir (dir_cur);
+        if (chdir (dir_cur))
+                fatal ("Can't access the directory", errno);
 
         if (chdir (dir))
         {
                 if (errno == EACCES)
-                        fatal ("Can't access the directory", errno);
+                        fatal ("Can't access such directory", errno);
                 else if (errno == ENOENT)
                 {
                         if (mkdir (dir, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
-                                fatal ("Can't access the directory of configuration file", errno);
+                                fatal ("Can't access such directory", errno);
                         else
                                 chdir (dir);
                 }
@@ -153,16 +170,11 @@ read_option (const char *conf_path)
         chdir (cwd);
 }
 
-/**
- * \brief
- * \detals
- * \param conf_path
- * \return 
- */
 int
 install_conf (const char *conf_path)
 {
         char *cwd;
+        FILE *conf_file;
 
         cwd = getcwd (NULL, 0); 
         cwdir (conf_path, NULL);
@@ -183,7 +195,14 @@ install_conf (const char *conf_path)
         if (!fclose (conf_file))
                 report ("Configuration file was closed with error", errno);
 }
-
+/**
+ * \brief Reads the <code>from_path</code>, for coping your contents.
+ * \details
+ * Open <code>from_path</code>, make a search, taking each file or directory,
+ * 
+ * \param
+ * \param
+ * \return
 int
 read_dir (const char *from_path, char *to_path)
 {
@@ -221,7 +240,7 @@ read_dir (const char *from_path, char *to_path)
         closedir (dir);
 }
 
-        int
+int
 find_file (const char *dir_path, const char *file)
 {
         DIR *dir_cur;
@@ -257,7 +276,7 @@ find_file (const char *dir_path, const char *file)
  * the same file in different folders.
  * \return m_time True if file <code>dir_path_dev</code> is the newest, false otherwise.
  */
-        int
+int
 cmp_stat (const char *dir_path_dev, const char *dir_path_src, const char *file)
 {
         char *root_dir;
@@ -293,29 +312,29 @@ cmp_stat (const char *dir_path_dev, const char *dir_path_src, const char *file)
  * \param origin_file File to be copied
  **/
 int
-do_copy(const char *dir_path_dev, const char *dir_path_src, const char *origin_file)
+do_copy(const char *dir_dev, const char *dir_src, const char *file)
 {
         FILE *file_dev;
         FILE *file_src;
-        char *buf;
-        char *cwd;
-        int fd, ok;
+        char *buf, *cwd;
+        int fd;
         __off_t file_size;
-        struct stat file_meta;
         size_t mult, rest, cnt;
+        struct stat file_meta;
+
         cwd = getcwd (NULL, 0);
-        chdir (dir_path_dev);
-        fd = open (origin_file, O_RDONLY);
+        chdir (dir_dev);
+        fd = open (file, O_RDONLY);
         file_dev = fdopen (fd, "r");
         fstat (fd, &file_meta);
         file_size = file_meta.st_size;
 
-        if (chdir (dir_path_src))
+        if (chdir (dir_src))
                 if (errno == ENOENT)
-                        if (mkdir (dir_path_src, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
-                                if (chdir (dir_path_src))
+                        if (mkdir (dir_src, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
+                                if (chdir (dir_src))
                                         fatal ("Can't access the source directory", errno);
-        file_src = fopen (origin_file, "w");
+        file_src = fopen (file, "w");
 
         /* If the file is heavier than a Mega(buffer size),
          * the buffer will contain pointers for space dinamically allocated.*/
@@ -351,26 +370,12 @@ do_copy(const char *dir_path_dev, const char *dir_path_src, const char *origin_f
         chdir (cwd);
 }
 
-/**
- * \brief The main function.
- * \details
- * The <code>main</code> function checks the arguments passed to cpusb as options and 
- * modes of synchronization. After collecting and processing arguments, other 
- * functions will be in charge of doing what was asked.
- *
- * \param argc Number of arguments
- * \param argv The arguments
- * \return EXIT_SUCCESS if completed correctly
- */
-        int
-main (int argc, char **argv)
+read_args (int argc, char *argv[])
 {
         char c;
-        // Folder containing the configuration file. Should be modified before compiling.
         const char *conf_path = "/home/willian/devel/cpusb/src";
         // String with list of short options.
         const char *short_options = "i:Bh";
-        int ok;
         int option_index = 0;
         // Options of arguments for cpusb.
         static struct option long_options[]=
@@ -422,5 +427,22 @@ main (int argc, char **argv)
                                         break;
                         }
                 }
+}
+/**
+ * \brief The main function.
+ * \details
+ * The <code>main</code> function checks the arguments passed to cpusb as options and 
+ * modes of synchronization. After collecting and processing arguments, other 
+ * functions will be in charge of doing what was asked.
+ *
+ * \param argc Number of arguments
+ * \param argv The arguments
+ * \return EXIT_SUCCESS if completed correctly
+ */
+int
+main (int argc, char *argv[])
+{
+        read_args (argc, argv);
+
         return (EXIT_SUCCESS);
 }
