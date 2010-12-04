@@ -22,14 +22,22 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+CC      = gcc
+FLAGS   = -ggdb -Wall -pass-exit-codes
+LIB     = -lconfuse
+
+INFILE  = src/cpusb.c
+OUTFILE = build/cpusb
+
 all: build build-doc
 	@echo 'finished.'
 
 build:
 	mkdir build/
-	gcc src/cpusb.c -o build/cpusb -lconfuse -g -pass-exit-codes
+	$(CC) $(FLAGS) $(LIB) -o $(OUTFILE) $(INFILE)
 
 build-doc:
+	mkdir -p doc/devel/
 	doxygen doxyfile
 
 clean-build:
