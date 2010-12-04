@@ -1,14 +1,20 @@
-CPUSB_H_	cpusb.h	27
-Kb	cpusb.h	43
-Mb	cpusb.h	44
-Mcpusb	cpusb.c	/^main (int argc, char **argv)$/
-cmp_stat	cpusb.c	/^cmp_stat (const char *dir_path_dev, const char *di/
-conf_file	cpusb.h	47
-dev_path	cpusb.h	50
-do_copy	cpusb.c	/^do_copy(const char *dir_path_dev, const char *dir_/
-find_file	cpusb.c	/^find_file (const char *dir_path, const char *file)/
-handler_dir	cpusb.c	/^handler_dir (const char * dir_path, const char *di/
-install_conf	cpusb.c	/^install_conf (const char *conf_path)$/
-read_dir	cpusb.c	/^read_dir (const char *from_path, char *to_path)$/
-read_option	cpusb.c	/^read_option (const char *conf_path)$/
-src_path	cpusb.h	51
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.8	//
+Kb	cpusb.c	48;"	d	file:
+cmp_stat	cpusb.c	/^cmp_stat (const char *dir_path_dev, const char *dir_path_src, const char *file)$/;"	f
+cwdir	cpusb.c	/^cwdir (const char *dir_cur, const char *dir)$/;"	f
+dev_path	cpusb.c	/^char *dev_path;$/;"	v
+do_copy	cpusb.c	/^do_copy(const char *dir_dev, const char *dir_src, const char *file)$/;"	f
+fatal	cpusb.c	/^fatal (const char *msg, const int err)$/;"	f
+find_file	cpusb.c	/^find_file (const char *dir_path, const char *file)$/;"	f
+install_conf	cpusb.c	/^install_conf (const char *conf_path)$/;"	f
+main	cpusb.c	/^main (int argc, char *argv[])$/;"	f
+read_args	cpusb.c	/^read_args (int argc, char *argv[])$/;"	f
+read_dir	cpusb.c	/^read_dir (const char *from_path, char *to_path)$/;"	f
+read_option	cpusb.c	/^read_option (const char *conf_path)$/;"	f
+report	cpusb.c	/^report (const char *msg, const int err)$/;"	f
+src_path	cpusb.c	/^char *src_path;$/;"	v
