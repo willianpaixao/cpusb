@@ -1,4 +1,4 @@
-#
+##
 # \author "Willian Paixao" <willian@ufpa.br>
 # \date 2010-05-17
 # \file Makefile
@@ -26,11 +26,14 @@ CC      = gcc
 FLAGS   = -ggdb -Wall -pass-exit-codes
 LIB     = -lconfuse
 
+# INFILE is the source code to be compiled.
 INFILE  = src/cpusb.c
+
+# OUTFILE is the path and name of binary
 OUTFILE = build/cpusb
 
 all: build build-doc
-	@echo 'finished.'
+	@echo 'Finished.'
 
 build:
 	mkdir build/
@@ -40,13 +43,14 @@ build-doc:
 	mkdir -p doc/devel/
 	doxygen doxyfile
 
+clean: clean-build clean-doc
+	@echo 'All cleaned.'
+
 clean-build:
 	rm -rf build/
-	@echo 'build clean.'
+	@echo 'Build clean.'
 
 clean-doc:
 	rm -rf doc/
-	@echo 'documentation clean.'
+	@echo 'Documentation clean.'
 
-clean: clean-build clean-doc
-	@echo 'All cleaned.'
