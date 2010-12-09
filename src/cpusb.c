@@ -27,6 +27,19 @@
  * Contains all source and do all work.
  */
 
+/**
+ * \def CPUSBH
+ * The old header file, cpusb.h.
+ */
+#ifndef CPUSBH
+#define CPUSBH true
+
+/**
+ * \def Kb
+ * Length of Kilo byte.
+ */
+#define Kb 1024
+
 /* The includes of life. */
 #include <confuse.h>
 #include <dirent.h>
@@ -43,15 +56,6 @@
 #include <unistd.h>
 
 /**
- * \def Kb
- * Length of Kilo byte.
- */
-#define Kb 1024
-
-/* Explicit declaration of functions */
-void do_copy (const char *dir_dev, const char *dir_src, const char *file);
-
-/**
  * \var char *dev_path
  * The path of device directory.
  */
@@ -62,6 +66,8 @@ char *dev_path;
  * The path of source directory.
  */
 char *src_path;
+
+#endif
 
 /**
  * \brief prints mensages for non-critical errors.
@@ -80,7 +86,8 @@ report (const char *msg, const int err)
  * For error that can't be handled, fatal is call for prints the message and
  * close the program.
  *
- * \var msg Message to be printed.
+ * \param msg String to be printed.
+ * \param err contains <code>errno</code>.
  */
 void
 fatal (const char *msg, const int err)
@@ -153,23 +160,23 @@ read_option (const char *conf_path)
         if (cwdir (cwd, conf_path))
                 chdir (conf_path);
 
-        conf_file = fopen (".conf", "a");
+        conf_file = fopen (".cpusb", "a");
         if (!conf_file)
                 fatal ("Can't open configuration file", errno);
         else
                 fclose (conf_file);
 
         cfg = cfg_init (opts, 0);
-        cfg_parse (cfg, ".conf");
+        cfg_parse (cfg, ".cpusb");
         cfg_free(cfg);
 
-        if (cwdir (cwd, dev_path))
+        if (cwdir (cwd, dev_path) == NULL)
                 fatal ("Can't access the device directory", errno);
-        if (cwdir (cwd, src_path))
+        if (cwdir (cwd, src_path) == NULL)
                 fatal ("Can't access the source directory", errno);
 
         /**
-         * \todo{ to implement the return stament }
+         * \todo Implement the return stament 
          */
         return 1;
 }
@@ -183,7 +190,6 @@ install_conf (const char *conf_path)
         cwd = getcwd (NULL, 0); 
         cwdir (conf_path, NULL);
         chdir (conf_path);
-        printf ("%s\t%s\n", getcwd(NULL, 0), conf_path);
         conf_file = fopen (".cpusb", "w+");
         if (!conf_file)
         {
@@ -208,137 +214,18 @@ install_conf (const char *conf_path)
 }
 
 /**
- * \brief Reads the <code>from_path</code>, for coping your contents.
- * Open <code>from_path</code>, make a search, taking each file or directory,
- * For each file or directory, try to find on other location, between device and
- * source directory. Look to your content and do copy from the newest to the oldest.
- * 
- * \param from_path Origin location, generally the device directory.
- * \param to_path Destination folder, generally the source directory.
- * \return Not implemented yet.
- */
-int
-read_dir (const char *from_path, char *to_path)
-{
-        DIR *dir = NULL;
-        struct dirent *entry;
-
-        dir = opendir (from_path);
-        while ((entry = readdir (dir)) != NULL)
-        {
-                if (entry->d_type == DT_DIR)
-                {
-                        if (!strcmp (entry->d_name, ".") || !strcmp (entry->d_name, ".."))
-                                continue;
-                        else
-                        {
-                                chdir (entry->d_name);
-                                read_dir (getcwd (NULL, 0), cwdir (to_path, entry->d_name));
-                                chdir ("..");
-                        }
-                }
-                else if (entry->d_type == DT_REG)
-                {
-                        if (find_file (to_path, entry->d_name))
-                        {
-                                if (cmp_stat (from_path, to_path, entry->d_name))
-                                        do_copy (from_path, to_path, entry->d_name);
-                                else
-                                        do_copy (to_path, from_path, entry->d_name);
-                        }
-                        else
-                                do_copy (from_path, to_path, entry->d_name);
-                }
-        }
-        closedir (dir);
-
-        /**
-         * \todo{ to implement the return stament }
-         */
-        return 1;
-}
-
-int
-find_file (const char *dir_path, const char *file)
-{
-        DIR *dir_cur;
-        int ret = 0; /* Default, file not found. */
-        struct dirent *entry;
-
-        dir_cur = opendir (dir_path);
-        if (dir_cur)
-        {
-                while ((entry = readdir (dir_cur)))
-                {
-                        if (!strcmp (entry->d_name, file))
-                        {
-                                /* I found it! */
-                                ret = 1;
-                                break;
-                        }
-                }
-                closedir (dir_cur);
-
-                return ret;
-        }
-
-        /**
-         * \todo{ to implement the return stament }
-         */
-        return 1;
-}
-
-/**
- * \brief Compare <code>m_time</code> of two files.
- * \details
- * The <code>m_time in struct stat</code> defined in <code>bits/stat.h</code> 
- * included in <code>sys/stat.h</code>. The field provides the last modification time. 
- * The function returns true if the file has been modified <code>dir_path_dev</code> 
- * finally, false otherwise.
- *
- * \param dir_path_dev A folder on <i>device</i>
- * \param dir_path_src A folder on <i>source</i>
- * \param file Filename. Notice that only one name is passed, because it must be 
- * the same file in different folders.
- * \return m_time True if file <code>dir_path_dev</code> is the newest, false otherwise.
- */
-int
-cmp_stat (const char *dir_path_dev, const char *dir_path_src, const char *file)
-{
-        char *root_dir;
-        int fd_dev, fd_src, m_time;
-        struct stat file_meta_dev, file_meta_src;
-
-        root_dir = getcwd (NULL, 0);
-        chdir (dir_path_dev);
-        fd_dev = open (file, O_RDWR | O_APPEND | O_RSYNC);
-        fstat (fd_dev, &file_meta_dev);
-        chdir (dir_path_src);
-        fd_src = open (file, O_RDWR | O_APPEND | O_RSYNC);
-        fstat (fd_src, &file_meta_src);
-        chdir (root_dir);
-        if (file_meta_dev.st_mtime > file_meta_src.st_mtime)
-                m_time = 1;
-        else
-                m_time = 0;
-
-        return m_time;
-}
-
-/**
  * \brief Performs the copy between the device and source.
- * \details
  * Receiving a source and a destination directory, performs the copy in the 
  * direction of the device to the source. First loading the file into a dynamic 
  * buffer size, creating the destination folder, if necessary, create or 
  * truncate the target file, copy and releases the buffer.
  *
- * \param dir_path_dev Directory path origin
- * \param dir_path_src Directory path end
- * \param origin_file File to be copied
+ * \param dir_dev Initial directory of origin file
+ * \param dir_src Directory of copied file
+ * \param file File to be copied
  **/
 void
-do_copy(const char *dir_dev, const char *dir_src, const char *file)
+copy(const char *dir_dev, const char *dir_src, const char *file)
 {
         FILE *file_dev;
         FILE *file_src;
@@ -403,18 +290,132 @@ do_copy(const char *dir_dev, const char *dir_src, const char *file)
         chdir (cwd);
 }
 
+/**
+ * \brief Reads the <code>from_path</code>, for coping your contents.
+ * Open <code>from_path</code>, make a search, taking each file or directory,
+ * For each file or directory, try to find on other location, between device and
+ * source directory. Look to your content and do copy from the newest to the oldest.
+ * 
+ * \param from_path Origin location, generally the device directory.
+ * \param to_path Destination folder, generally the source directory.
+ * \return Not implemented yet.
+ */
+int
+read_dir (const char *from_path, char *to_path)
+{
+        DIR *dir = NULL;
+        struct dirent *entry;
+
+        dir = opendir (from_path);
+        while ((entry = readdir (dir)) != NULL)
+        {
+                if (entry->d_type == DT_DIR)
+                {
+                        if (!strcmp (entry->d_name, ".") || !strcmp (entry->d_name, ".."))
+                                continue;
+                        else
+                        {
+                                chdir (entry->d_name);
+                                read_dir (getcwd (NULL, 0), cwdir (to_path, entry->d_name));
+                                chdir ("..");
+                        }
+                }
+                else if (entry->d_type == DT_REG)
+                {
+                        if (find_file (to_path, entry->d_name))
+                        {
+                                if (cmp_stat (from_path, to_path, entry->d_name))
+                                        copy (from_path, to_path, entry->d_name);
+                                else
+                                        copy (to_path, from_path, entry->d_name);
+                        }
+                        else
+                                copy (from_path, to_path, entry->d_name);
+                }
+        }
+        closedir (dir);
+
+        /**
+         * \todo Implement the return stament 
+         */
+        return 1;
+}
+
+int
+find_file (const char *dir_path, const char *file)
+{
+        DIR *dir_cur;
+        int ret = 0; /* Default, file not found. */
+        struct dirent *entry;
+
+        dir_cur = opendir (dir_path);
+        if (dir_cur)
+        {
+                while ((entry = readdir (dir_cur)))
+                {
+                        if (!strcmp (entry->d_name, file))
+                        {
+                                /* I found it! */
+                                ret = 1;
+                                break;
+                        }
+                }
+                closedir (dir_cur);
+        }
+
+        return ret;
+}
+
+/**
+ * \brief Compare <code>m_time</code> of two files.
+ * \details
+ * The <code>m_time in struct stat</code> defined in <code>bits/stat.h</code> 
+ * included in <code>sys/stat.h</code>. The field provides the last modification time. 
+ * The function returns true if the file has been modified <code>dir_path_dev</code> 
+ * finally, false otherwise.
+ *
+ * \param dir_path_dev A folder on <i>device</i>
+ * \param dir_path_src A folder on <i>source</i>
+ * \param file Filename. Notice that only one name is passed, because it must be 
+ * the same file in different folders.
+ * \return m_time True if file <code>dir_path_dev</code> is the newest, false otherwise.
+ */
+int
+cmp_stat (const char *dir_path_dev, const char *dir_path_src, const char *file)
+{
+        char *root_dir;
+        int fd_dev, fd_src, m_time;
+        struct stat file_meta_dev, file_meta_src;
+
+        root_dir = getcwd (NULL, 0);
+        chdir (dir_path_dev);
+        fd_dev = open (file, O_RDWR | O_APPEND | O_RSYNC);
+        fstat (fd_dev, &file_meta_dev);
+        chdir (dir_path_src);
+        fd_src = open (file, O_RDWR | O_APPEND | O_RSYNC);
+        fstat (fd_src, &file_meta_src);
+        chdir (root_dir);
+        if (file_meta_dev.st_mtime > file_meta_src.st_mtime)
+                m_time = 1;
+        else
+                m_time = 0;
+
+        return m_time;
+}
+
 void
 read_args (int argc, char *argv[])
 {
         char c;
-        const char *conf_path = "/home/willian/devel/cpusb/src";
+        const char *conf_path;
         /* String with list of short options. */
-        const char *short_options = "i:bh";
+        const char *short_options = "fi:bh";
         int option_index = 0;
         /* Options of arguments for cpusb. */
         static struct option long_options[]=
         {
                 {"background", no_argument, NULL, 'b'},
+                {"file", optional_argument, NULL, 'f'},
                 {"help", no_argument, NULL, 'h'},
                 {"install", optional_argument, NULL, 'i'},
                 {NULL, 0, NULL, 0}
@@ -423,7 +424,7 @@ read_args (int argc, char *argv[])
         /* If no arguments, just run. */
         if (argc == 1)
         {
-                /* Reads the options of configuration file. */
+                conf_path = "/home/willian/devel/cpusb/src";
                 read_option (conf_path);
 
                 /* Start the copy. */
@@ -439,17 +440,32 @@ read_args (int argc, char *argv[])
                         switch (c)
                         {
                                 case 'b':
-                                        /** TODO: All background. */
+                                        /** 
+                                         * \todo Run as daemon.
+                                         */
                                         printf("Running in background.\n");
                                         break;
 
+                                case 'f':
+                                        conf_path = optarg;
+                                        read_option (conf_path);
+                                        /* Start the copy. */
+                                        chdir (dev_path);
+                                        read_dir (dev_path, src_path);
+
+                                        break;
+
                                 case 'h':
-                                        /** TODO: All help. */
+                                        /** 
+                                         * \todo Implement the help() function.
+                                         */
                                         printf("--help\n");
                                         break;
 
                                 case 'i':
-                                        /** TODO: It is poor. Improve it. */
+                                        /** 
+                                         * \todo Improve the install() function.
+                                         */
                                         if (optarg)
                                                 install_conf(optarg);
                                         else

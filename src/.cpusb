@@ -1,2 +1,2 @@
-source_path=/tmp/source
-device_path=/tmp/device
+device_path = /tmp/device
+source_path = /tmp/source
