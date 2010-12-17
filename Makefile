@@ -2,7 +2,7 @@
 # \author "Willian Paixao" <willian@ufpa.br>
 # \date 2010-05-17
 # \file Makefile
-# \version 0.0001
+# \version 0.001
 # \brief Yet do all.
 #
 # An automatic synchronizer for removable media. 

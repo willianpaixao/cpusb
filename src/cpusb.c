@@ -233,7 +233,7 @@ copy(const char *dir_dev, const char *dir_src, const char *file)
         FILE *file_dev;
         FILE *file_src;
         char *buf, *cwd;
-        int fd;
+        int fd_dev, fd_src;
         __off_t file_size;
         size_t mult, rest, cnt;
         struct stat file_meta;
@@ -241,11 +241,11 @@ copy(const char *dir_dev, const char *dir_src, const char *file)
         cwd = getcwd (NULL, 0);
         chdir (dir_dev);
 
-        fd = open (file, O_RDONLY);
-        file_dev = fdopen (fd, "r");
-        if (fd < 0 || file_dev == NULL)
+        fd_dev = open (file, O_RDONLY);
+        file_dev = fdopen (fd_dev, "r");
+        if (fd_dev < 0 || file_dev == NULL)
                 report ("can't open origin file", errno);
-        fstat (fd, &file_meta);
+        fstat (fd_dev, &file_meta);
         file_size = file_meta.st_size;
         if (file_size <= 0)
                 report ("Origin file corrupted", errno);
@@ -255,7 +255,8 @@ copy(const char *dir_dev, const char *dir_src, const char *file)
                         if (mkdir (dir_src, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
                                 if (chdir (dir_src))
                                         fatal ("Can't access the source directory", errno);
-        file_src = fopen (file, "w");
+        fd_src = open (file, O_RDWR);
+        file_src = fdopen (fd_src, "w");
         if (file_src == NULL)
                 report ("can't open file for copy", errno);
 
@@ -287,7 +288,11 @@ copy(const char *dir_dev, const char *dir_src, const char *file)
                 free (buf);
         }
 
-        close (fd);
+        fchmod (fd_src, file_meta.st_mode); 
+        fchown (fd_src, file_meta.st_uid, file_meta.st_gid);
+
+        close (fd_dev);
+        close (fd_src);
         fclose (file_dev);
         fclose (file_src);
         chdir (cwd);
@@ -469,15 +474,16 @@ read_args (int argc, char *argv[])
                 {NULL, 0, NULL, 0}
         };
 
-        /* If no arguments, just run. */
-        if (argc == 1)
-        {
                 /* Gets the home of user.
                  * The home directory is used for read the configuration file.
                  */
                 pw = getpwuid (getuid ());
                 home = pw->pw_dir;
                 
+
+        /* If no arguments, just run. */
+        if (argc == 1)
+        {
                 read_option (home);
 
                 daemon (0, 0);
@@ -523,7 +529,7 @@ read_args (int argc, char *argv[])
                                         if (optarg)
                                                 install_conf(optarg);
                                         else
-                                                install_conf(conf_path);
+                                                install_conf(home);
                                         break;
 
                                 default:
