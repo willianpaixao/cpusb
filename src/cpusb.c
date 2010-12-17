@@ -22,7 +22,7 @@
  * \file cpusb.c
  * \author "Willian Paixao" <willian@ufpa.br>                                                                                           
  * \date 2010-05-17
- * \version 0.0001
+ * \version 0.001
  * \brief Main source file.
  * Contains all source and do all work.
  */
@@ -48,8 +48,10 @@
 #include <getopt.h>
 #include <limits.h>
 #include <linux/fs.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/inotify.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <string.h>
@@ -143,6 +145,7 @@ cwdir (const char *dir_cur, const char *dir)
  *
  * \param conf_path Path of configuration file.
  * \return Not implemented yet.
+ * \see confuse.h
  */
 int
 read_option (const char *conf_path)
@@ -403,18 +406,63 @@ cmp_stat (const char *dir_path_dev, const char *dir_path_src, const char *file)
         return m_time;
 }
 
+/**
+ * \brief Create an event and stay watching.
+ * Initialize, e add a <code>inotify_event</code>.
+ * Waiting <code>dev_path</code> for changes, then call 
+ * <code>read_dir()</code> for start the copy. Do it recursively.
+ */
+void cpusb_daemon ()
+{
+        char buf[Kb]__attribute__((aligned(4)));
+        int fd;
+        ssize_t wd, len = 0, i = 0;
+
+        fd = inotify_init ();
+        if (fd == -1)
+                fatal ("Can't initialize inotify", errno);
+
+        wd = inotify_add_watch (fd, dev_path, IN_MODIFY | 
+                        IN_ATTRIB | 
+                        IN_CREATE | 
+                        IN_DELETE);
+        if (wd == -1)
+                fatal ("Can't add a watch event", errno);
+
+        len = read (fd, buf, Kb);
+
+        while (i < len)
+        {
+                struct inotify_event *event = (struct inotify_event *) &buf[i];
+
+                if (event->mask & IN_MODIFY ||
+                                event->mask & IN_ATTRIB || 
+                                event->mask & IN_CREATE || 
+                                event->mask & IN_DELETE)
+                {
+                        /* Start the copy. */
+                        chdir (dev_path);
+                        read_dir (dev_path, src_path);
+                        
+                        cpusb_daemon ();
+                }
+
+                i += sizeof (struct inotify_event) + event->len;
+        }
+}
+
 void
 read_args (int argc, char *argv[])
 {
         char c;
-        const char *conf_path;
+        const char *conf_path, *home;
         /* String with list of short options. */
-        const char *short_options = "fi:bh";
+        const char *short_options = "fi:h";
         int option_index = 0;
+        struct passwd *pw;
         /* Options of arguments for cpusb. */
         static struct option long_options[]=
         {
-                {"background", no_argument, NULL, 'b'},
                 {"file", optional_argument, NULL, 'f'},
                 {"help", no_argument, NULL, 'h'},
                 {"install", optional_argument, NULL, 'i'},
@@ -424,31 +472,37 @@ read_args (int argc, char *argv[])
         /* If no arguments, just run. */
         if (argc == 1)
         {
-                conf_path = "/home/willian/devel/cpusb/src";
-                read_option (conf_path);
+                /* Gets the home of user.
+                 * The home directory is used for read the configuration file.
+                 */
+                pw = getpwuid (getuid ());
+                home = pw->pw_dir;
+                
+                read_option (home);
+
+                daemon (0, 0);
 
                 /* Start the copy. */
                 chdir (dev_path);
                 read_dir (dev_path, src_path);
+
+                cpusb_daemon ();
+
         }
         /* If there are arguments, do you job. */
         else
                 /* The loop should run until end arguments. */
-                while ((c = (char) getopt_long (argc, argv, short_options, long_options, &option_index)) != -1)
+                while ((c = (char) getopt_long (argc, argv, short_options, 
+                                                long_options, 
+                                                &option_index)) != -1)
                 {
                         option_index = 0;
                         switch (c)
                         {
-                                case 'b':
-                                        /** 
-                                         * \todo Run as daemon.
-                                         */
-                                        printf("Running in background.\n");
-                                        break;
-
                                 case 'f':
                                         conf_path = optarg;
                                         read_option (conf_path);
+
                                         /* Start the copy. */
                                         chdir (dev_path);
                                         read_dir (dev_path, src_path);
@@ -478,8 +532,10 @@ read_args (int argc, char *argv[])
                         }
                 }
 }
+
 /**
  * \brief The main function.
+ * Just call other functions.
  *
  * \param argc Number of arguments.
  * \param argv The arguments.
