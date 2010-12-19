@@ -1,10 +1,13 @@
- o 8 Include libudev library for automatic detection od removible devices
+ x 8 Include libudev library for automatic detection od removible devices
+        - Instead, I use inotify_event library.
 
- o 6 Turn it a daemon
+ x 6 Turn it a daemon
+        - I use, as expected, daemon () system call.
 
  o 6 Build .configure
 
- o 4 Make a better Makefile
+ x 4 Make a better Makefile
+        - It's good enough.
 
  o 3 Write README e INSTALL
 
