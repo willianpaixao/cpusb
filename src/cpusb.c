@@ -227,13 +227,13 @@ install_conf (const char *conf_path)
  * \param dir_src Directory of copied file
  * \param file File to be copied
  **/
-void
+int
 copy(const char *dir_dev, const char *dir_src, const char *file)
 {
         FILE *file_dev;
         FILE *file_src;
         char *buf, *cwd;
-        int fd_dev, fd_src;
+        int fd;
         __off_t file_size;
         size_t mult, rest, cnt;
         struct stat file_meta;
@@ -241,24 +241,29 @@ copy(const char *dir_dev, const char *dir_src, const char *file)
         cwd = getcwd (NULL, 0);
         chdir (dir_dev);
 
-        fd_dev = open (file, O_RDONLY);
-        file_dev = fdopen (fd_dev, "r");
-        if (fd_dev < 0 || file_dev == NULL)
+        fd = open (file, O_RDONLY);
+        file_dev = fdopen (fd, "r");
+        if (fd < 0 || file_dev == NULL)
                 report ("can't open origin file", errno);
-        fstat (fd_dev, &file_meta);
+        fstat (fd, &file_meta);
         file_size = file_meta.st_size;
         if (file_size <= 0)
+        {
                 report ("Origin file corrupted", errno);
+                return -1;
+        }
 
         if (chdir (dir_src))
                 if (errno == ENOENT)
                         if (mkdir (dir_src, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
                                 if (chdir (dir_src))
                                         fatal ("Can't access the source directory", errno);
-        fd_src = open (file, O_RDWR);
-        file_src = fdopen (fd_src, "w");
+        file_src = fopen (file, "w");
         if (file_src == NULL)
-                report ("can't open file for copy", errno);
+        {
+                report ("Can't open file for copy", errno);
+                return -1;
+        }
 
         /* If the file is heavier than a Mega(buffer size),
          * the buffer will contain pointers for space dinamically allocated.*/
@@ -288,14 +293,16 @@ copy(const char *dir_dev, const char *dir_src, const char *file)
                 free (buf);
         }
 
-        fchmod (fd_src, file_meta.st_mode); 
-        fchown (fd_src, file_meta.st_uid, file_meta.st_gid);
-
-        close (fd_dev);
-        close (fd_src);
+        if (chmod (file, file_meta.st_mode))
+                report ("Can't change the permissions of copied file", errno);                        
+        if (chown (file, file_meta.st_uid, file_meta.st_gid))
+                report ("Can't change the ounwer of copied file", errno);                        
+        close (fd);
         fclose (file_dev);
         fclose (file_src);
         chdir (cwd);
+
+        return 0;
 }
 
 /**
@@ -427,10 +434,7 @@ void cpusb_daemon ()
         if (fd == -1)
                 fatal ("Can't initialize inotify", errno);
 
-        wd = inotify_add_watch (fd, dev_path, IN_MODIFY | 
-                        IN_ATTRIB | 
-                        IN_CREATE | 
-                        IN_DELETE);
+        wd = inotify_add_watch (fd, dev_path, IN_ATTRIB | IN_CLOSE_WRITE);
         if (wd == -1)
                 fatal ("Can't add a watch event", errno);
 
@@ -440,11 +444,9 @@ void cpusb_daemon ()
         {
                 struct inotify_event *event = (struct inotify_event *) &buf[i];
 
-                if (event->mask & IN_MODIFY ||
-                                event->mask & IN_ATTRIB || 
-                                event->mask & IN_CREATE || 
-                                event->mask & IN_DELETE)
+                if (event->mask & IN_CLOSE_WRITE || event->mask & IN_ATTRIB)
                 {
+                        printf ("\n\nops.. permissions changed\n");
                         /* Start the copy. */
                         chdir (dev_path);
                         read_dir (dev_path, src_path);
