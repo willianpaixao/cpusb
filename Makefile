@@ -43,6 +43,9 @@ build-doc:
 	mkdir -p doc/devel/
 	doxygen doxyfile
 
+rebuild: clean build
+	@echo 'Done.'
+
 clean: clean-build clean-doc
 	@echo 'All cleaned.'
 
