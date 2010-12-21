@@ -24,7 +24,7 @@
 
 CC      = gcc
 FLAGS   = -ggdb -Wall -pass-exit-codes
-LIB     = -lconfuse
+LIB     = -lconfuse -lreadline
 
 # INFILE is the source code to be compiled.
 INFILE  = src/cpusb.c

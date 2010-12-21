@@ -49,6 +49,8 @@
 #include <limits.h>
 #include <linux/fs.h>
 #include <pwd.h>
+#include <readline/history.h>
+#include <readline/readline.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/inotify.h>
@@ -134,7 +136,7 @@ cwdir (const char *dir_cur, const char *dir)
         /* This function don't change the current directory. */
         chdir (cur);
 
-        /* cwd contains the path for dir. */
+        /* cwd contains the path of dir. */
         return cwd;
 }
 
@@ -195,22 +197,17 @@ install_conf (const char *conf_path)
         chdir (conf_path);
         conf_file = fopen (".cpusb", "w+");
         if (!conf_file)
-        {
                 fatal ("Can't open the configuration file", errno);
-                clearerr(conf_file);
-        }
 
         fflush (stdin);
 
-        printf ("Device directory: ");
-        scanf ("%s", &dev_path);
-        fprintf (conf_file, "device_path = %s\n", &dev_path);
+        dev_path = readline ("Device directory: ");
+        fprintf (conf_file, "device_path = %s\n", dev_path);
 
-        printf ("Destination directory: ");
-        scanf ("%s", &src_path);
-        fprintf (conf_file, "source_path = %s\n", &src_path);
+        src_path = readline ("Destination directory: ");
+        fprintf (conf_file, "source_path = %s\n", src_path);
 
-        if (!fclose (conf_file))
+        if (fclose (conf_file))
                 report ("Configuration file was closed with error", errno);
 
         chdir (cwd);	
@@ -404,10 +401,10 @@ cmp_stat (const char *dir_path_dev, const char *dir_path_src, const char *file)
 
         root_dir = getcwd (NULL, 0);
         chdir (dir_path_dev);
-        fd_dev = open (file, O_RDWR | O_APPEND | O_RSYNC);
+        fd_dev = open (file, O_RDONLY | O_APPEND | O_RSYNC);
         fstat (fd_dev, &file_meta_dev);
         chdir (dir_path_src);
-        fd_src = open (file, O_RDWR | O_APPEND | O_RSYNC);
+        fd_src = open (file, O_RDONLY | O_APPEND | O_RSYNC);
         fstat (fd_src, &file_meta_src);
         chdir (root_dir);
         if (file_meta_dev.st_mtime > file_meta_src.st_mtime)
