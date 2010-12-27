@@ -1,20 +1,16 @@
- x 8 Include libudev library for automatic detection od removible devices
-        - Instead, I use inotify_event library.
+ o 6 Build .configure.
 
- x 6 Turn it a daemon
-        - I use, as expected, daemon () system call.
+ o 3 Write README e INSTALL.
 
- o 6 Build .configure
-
- x 4 Make a better Makefile
-        - It's good enough.
-
- o 3 Write README e INSTALL
-
- o 3 Include default values for paths and configuration
-
- x 3 Improve the report system. Their functions have missing features.
-        - msg and strcat turn the messages more flexibles.
+ o 3 Include default values for paths and configuration.
 
  o 4 Implement a log file, in /var.
+
+ o 4 Implement install target in Makefile.
+
+ o 3 Create .tar.bz2 package.
+
+ o 4 Create .deb package.
+
+ o 6 Create .rpm package.
 
