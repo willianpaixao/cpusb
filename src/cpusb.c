@@ -12,8 +12,8 @@
  * 
  * This program is distributed in the hope that it will be useful,<br/>
  * but WITHOUT ANY WARRANTY; without even the implied warranty of<br/>
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the<br/>
- * GNU General Public License for more details.<br/>
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.<br/>
+ * See the GNU General Public License for more details.<br/>
  *
  * You should have received a copy of the GNU General Public License<br/>
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
@@ -32,7 +32,12 @@
  * The old header file, cpusb.h.
  */
 #ifndef CPUSBH
-#define CPUSBH true
+#define CPUSBH
+
+/* Precisely POSIX conforming. */
+#ifndef CONFORMING
+#define CONFORMING 1
+#endif
 
 /**
  * \def Kb
@@ -40,7 +45,19 @@
  */
 #define Kb 1024
 
-/* The includes of life. */
+/* 
+ * The includes of life.
+ *
+ * \headerfile confuse.h
+ * libconfuse is a GNU project.
+ * Used in <code>read_option()</code>, this library read the confguration file
+ * every initialization of cpusb.
+ *
+ * \headerfile readline.h
+ * libreadline is provides functions and shortcuts of shell.
+ * Used in <code>install_conf()</code>, this library provides a wide range of
+ * shortcut for search and write the settings in install option.
+ */
 #include <confuse.h>
 #include <dirent.h>
 #include <errno.h>
@@ -62,14 +79,14 @@
 /**
  * \var char *dev_path
  * The path of device directory.
- */
-char *dev_path;
-
-/**
+ * Normally, this directory contains the original files.
+ * If one file is removed from here, cpusb doesn't return it.
+ *
  * \var char *src_path
  * The path of source directory.
+ * Normally, the original files are copied to here.
  */
-char *src_path;
+char *dev_path, *src_path;
 
 #endif
 
@@ -101,7 +118,7 @@ fatal (const char *msg, const int err)
 }
 
 /**
- * \brief Change the current directory, make it if no exist.
+ * Change the current directory, make it if no exist.
  * Some functions needs to change the current directory,
  * <code>cwdir</code> turns it more flexible and centralized.
  * If the destination directory no exist, is created.
@@ -113,23 +130,39 @@ fatal (const char *msg, const int err)
 char *                                                        
 cwdir (const char *dir_cur, const char *dir)
 {
-        char *cur, *cwd;
+        char *cur, *cwd, *msg;
+
+        msg = calloc (MAX_INPUT, sizeof (char));
 
         cur = getcwd (NULL, 0);
         if (chdir (dir_cur))
-                fatal ("Can't access the directory", errno);
+        {
+                strcat (msg, "Can't access ");
+                strcat (msg, dir_cur);
+                fatal (msg, errno);
+        }
 
         if (chdir (dir))
         {
                 if (errno == EACCES)
-                        fatal ("Can't access such directory", errno);
+                {
+                        strcat (msg, "Can't access ");
+                        strcat (msg, dir);
+                        fatal (msg, errno);
+                }
                 else if (errno == ENOENT)
                 {
                         if (mkdir (dir, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
-                                fatal ("Can't access such directory", errno);
+                        {
+                                strcat (msg, dir);
+                                strcat (msg, " doesn't exist. Can't make it.");
+                                fatal (msg, errno);
+                        }
                         else
                                 chdir (dir);
                 }
+                else
+                        report ("This error can't be handled", errno);
 
         }
         cwd = getcwd (NULL, 0);

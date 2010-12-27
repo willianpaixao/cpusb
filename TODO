@@ -13,6 +13,8 @@
 
  o 3 Include default values for paths and configuration
 
- o 3 Improve the report system. Their functions have missing features.
+ x 3 Improve the report system. Their functions have missing features.
+        - msg and strcat turn the messages more flexibles.
 
+ o 4 Implement a log file, in /var.
 
