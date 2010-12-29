@@ -4,7 +4,10 @@
 
  o 3 Include default values for paths and configuration.
 
- o 4 Implement a log file, in /var.
+ x 4 Implement a log file, in /var.
+        - It works well.
+
+ o 4 Write start/stop scripts in init.d
 
  o 4 Implement install target in Makefile.
 

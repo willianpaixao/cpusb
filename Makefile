@@ -43,6 +43,8 @@ build-doc:
 	mkdir -p doc/devel/
 	doxygen doxyfile
 
+# This target is for developers, just clean e compile the source code again.
+# Turns the debug task little quicker.
 rebuild: clean build
 	@echo 'Done.'
 

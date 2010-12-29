@@ -27,15 +27,18 @@
  * Contains all source and do all work.
  */
 
+#ifndef CPUSBH
 /**
  * \def CPUSBH
  * The old header file, cpusb.h.
  */
-#ifndef CPUSBH
-#define CPUSBH
+#define CPUSBH 1
 
-/* Precisely POSIX conforming. */
 #ifndef CONFORMING
+/**
+ * \def CONFORMING
+ * Precisely POSIX conforming.
+ */
 #define CONFORMING 1
 #endif
 
@@ -98,8 +101,21 @@ char *dev_path, *src_path;
  */
 void
 report (const char *msg, const int err)
-{
-        printf ("cpusb: %s.\ncpusb: %s.\n", msg, strerror (err));
+{       
+        char *cwd;
+        FILE *log_file;
+
+        cwd = getcwd (NULL, 0);
+        chdir ("/var/log");
+
+        log_file = fopen ("cpusb", "w");
+
+        fprintf (log_file, "cpusb: %s.\ncpusb: %s\n", msg, strerror (err));
+
+        fclose (log_file);
+
+        /* This function don't change the current directory. */
+        chdir (cwd);
 }
 
 /**
@@ -162,12 +178,15 @@ cwdir (const char *dir_cur, const char *dir)
                                 chdir (dir);
                 }
                 else
+                        /*If errno is unknown, just warn and try to move on.*/
                         report ("This error can't be handled", errno);
 
         }
         cwd = getcwd (NULL, 0);
         /* This function don't change the current directory. */
         chdir (cur);
+
+        free (msg);
 
         /* cwd contains the path of dir. */
         return cwd;
@@ -185,7 +204,7 @@ cwdir (const char *dir_cur, const char *dir)
 int
 read_option (const char *conf_path)
 {
-        char *cwd;
+        char *cwd, *msg;
         FILE *conf_file;
         cfg_t *cfg;
         cfg_opt_t opts[] = {
@@ -194,13 +213,19 @@ read_option (const char *conf_path)
                 CFG_END()
         };
 
+        msg = calloc (MAX_INPUT, sizeof (char));
+
         cwd = getcwd (NULL, 0);
         if (cwdir (cwd, conf_path))
                 chdir (conf_path);
 
         conf_file = fopen (".cpusb", "a");
         if (!conf_file)
-                fatal ("Can't open configuration file", errno);
+        {
+                strcat (msg, "Can't open the configuration file in ");
+                strcat (msg, conf_path);
+                fatal (msg, errno);
+        }
         else
                 fclose (conf_file);
 
@@ -209,9 +234,19 @@ read_option (const char *conf_path)
         cfg_free(cfg);
 
         if (cwdir (cwd, dev_path) == NULL)
-                fatal ("Can't access the device directory", errno);
+        {
+                strcat (msg, "Can't access the device directory: ");
+                strcat (msg, dev_path);
+                fatal (msg, errno);
+        }
         if (cwdir (cwd, src_path) == NULL)
-                fatal ("Can't access the source directory", errno);
+        {
+                strcat (msg, "Can't access the source directory: ");
+                strcat (msg, src_path);
+                fatal (msg, errno);
+        }
+
+        free (msg);
 
         /**
          * \todo Implement the return stament 
@@ -222,26 +257,36 @@ read_option (const char *conf_path)
 void
 install_conf (const char *conf_path)
 {
-        char *cwd;
+        char *cwd, *msg;
         FILE *conf_file;
+
+        msg = calloc (MAX_INPUT, sizeof (char));
 
         cwd = getcwd (NULL, 0); 
         cwdir (conf_path, NULL);
         chdir (conf_path);
         conf_file = fopen (".cpusb", "w+");
         if (!conf_file)
-                fatal ("Can't open the configuration file", errno);
+        {
+                strcat (msg, "Can't open the configuration file in ");
+                strcat (msg, conf_path);
+                fatal (msg, errno);
+        }
 
         fflush (stdin);
 
         dev_path = readline ("Device directory: ");
         fprintf (conf_file, "device_path = %s\n", dev_path);
+        /** \todo error handling. */
 
         src_path = readline ("Destination directory: ");
         fprintf (conf_file, "source_path = %s\n", src_path);
+        /** \todo error handling. */
 
         if (fclose (conf_file))
                 report ("Configuration file was closed with error", errno);
+
+        free (msg);
 
         chdir (cwd);	
 }
@@ -262,11 +307,13 @@ copy(const char *dir_dev, const char *dir_src, const char *file)
 {
         FILE *file_dev;
         FILE *file_src;
-        char *buf, *cwd;
+        char *buf, *cwd, *msg;
         int fd;
         __off_t file_size;
         size_t mult, rest, cnt;
         struct stat file_meta;
+
+        msg = calloc (MAX_INPUT, sizeof (char));
 
         cwd = getcwd (NULL, 0);
         chdir (dir_dev);
@@ -274,24 +321,30 @@ copy(const char *dir_dev, const char *dir_src, const char *file)
         fd = open (file, O_RDONLY);
         file_dev = fdopen (fd, "r");
         if (fd < 0 || file_dev == NULL)
-                report ("can't open origin file", errno);
+        {
+                strcat (msg, "Can't open ");
+                strcat (msg, file);
+                fatal (msg, errno);
+        }
         fstat (fd, &file_meta);
         file_size = file_meta.st_size;
         if (file_size <= 0)
         {
-                report ("Origin file corrupted", errno);
+                strcat (msg, file);
+                strcat (msg, " corrupted");
+                report (msg, errno);
                 return -1;
         }
 
-        if (chdir (dir_src))
-                if (errno == ENOENT)
-                        if (mkdir (dir_src, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
-                                if (chdir (dir_src))
-                                        fatal ("Can't access the source directory", errno);
+        if (cwdir (cwd, dir_src))
+                chdir (dir_src);
+
         file_src = fopen (file, "w");
         if (file_src == NULL)
         {
-                report ("Can't open file for copy", errno);
+                strcat (msg, "Can't open ");
+                strcat (msg, file);
+                report (msg, errno);
                 return -1;
         }
 
@@ -324,9 +377,20 @@ copy(const char *dir_dev, const char *dir_src, const char *file)
         }
 
         if (chmod (file, file_meta.st_mode))
-                report ("Can't change the permissions of copied file", errno);                        
+        {
+                strcat (msg, "Can't change the permissions of ");
+                strcat (msg, file);
+                report (msg, errno);
+        }
         if (chown (file, file_meta.st_uid, file_meta.st_gid))
-                report ("Can't change the ounwer of copied file", errno);                        
+        {
+                strcat (msg, "Can't change the ownwership of ");
+                strcat (msg, file);
+                report (msg, errno);
+        }
+
+        free (msg);
+
         close (fd);
         fclose (file_dev);
         fclose (file_src);
@@ -386,6 +450,13 @@ read_dir (const char *from_path, char *to_path)
         return 1;
 }
 
+/**
+ * \brief Search a <code>file</code> in <code><dir_path/code>.
+ * Returns true if file is found, otherwise returns false.
+ *
+ * \param dir_path Directory for search.
+ * \param file Name of file which will be search.
+ */
 int
 find_file (const char *dir_path, const char *file)
 {
@@ -413,7 +484,6 @@ find_file (const char *dir_path, const char *file)
 
 /**
  * \brief Compare <code>m_time</code> of two files.
- * \details
  * The <code>m_time in struct stat</code> defined in <code>bits/stat.h</code> 
  * included in <code>sys/stat.h</code>. The field provides the last modification time. 
  * The function returns true if the file has been modified <code>dir_path_dev</code> 
@@ -565,7 +635,9 @@ read_args (int argc, char *argv[])
                                         break;
 
                                 default:
-                                        /** TODO: There should be an error handling. */
+                                        /**
+                                         * \todo There should be an error handling.
+                                         */
                                         break;
                         }
                 }
