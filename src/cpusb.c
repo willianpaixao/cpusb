@@ -144,7 +144,7 @@ fatal (const char *msg, const int err)
  * \return <code>dir</code>, the target directory.
  */
 char *                                                        
-cwdir (const char *dir_cur, const char *dir)
+cwdir (const char *dir_cur, const char *dir, mode_t mode, uid_t owner, gid_t group)
 {
         char *cur, *cwd, *msg;
 
@@ -175,7 +175,12 @@ cwdir (const char *dir_cur, const char *dir)
                                 fatal (msg, errno);
                         }
                         else
+                        {
+                                chmod (dir, mode);
+                                chown (dir, owner, group);
+
                                 chdir (dir);
+                        }
                 }
                 else
                         /*If errno is unknown, just warn and try to move on.*/
@@ -202,7 +207,7 @@ cwdir (const char *dir_cur, const char *dir)
  * \see confuse.h
  */
 int
-read_option (const char *conf_path)
+read_option (const char *conf_path, uid_t owner, gid_t group)
 {
         char *cwd, *msg;
         FILE *conf_file;
@@ -216,7 +221,7 @@ read_option (const char *conf_path)
         msg = calloc (MAX_INPUT, sizeof (char));
 
         cwd = getcwd (NULL, 0);
-        if (cwdir (cwd, conf_path))
+        if (cwdir (cwd, conf_path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH, owner, group))
                 chdir (conf_path);
 
         conf_file = fopen (".cpusb", "a");
@@ -233,13 +238,13 @@ read_option (const char *conf_path)
         cfg_parse (cfg, ".cpusb");
         cfg_free(cfg);
 
-        if (cwdir (cwd, dev_path) == NULL)
+        if (cwdir (cwd, dev_path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH, owner, group) == NULL)
         {
                 strcat (msg, "Can't access the device directory: ");
                 strcat (msg, dev_path);
                 fatal (msg, errno);
         }
-        if (cwdir (cwd, src_path) == NULL)
+        if (cwdir (cwd, src_path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH, owner, group) == NULL)
         {
                 strcat (msg, "Can't access the source directory: ");
                 strcat (msg, src_path);
@@ -255,7 +260,7 @@ read_option (const char *conf_path)
 }
 
 void
-install_conf (const char *conf_path)
+install_conf (const char *conf_path, uid_t owner, gid_t group)
 {
         char *cwd, *msg;
         FILE *conf_file;
@@ -263,7 +268,7 @@ install_conf (const char *conf_path)
         msg = calloc (MAX_INPUT, sizeof (char));
 
         cwd = getcwd (NULL, 0); 
-        cwdir (conf_path, NULL);
+        cwdir (cwd, conf_path, O_WRONLY, owner, group);
         chdir (conf_path);
         conf_file = fopen (".cpusb", "w+");
         if (!conf_file)
@@ -308,7 +313,7 @@ copy(const char *dir_dev, const char *dir_src, const char *file)
         FILE *file_dev;
         FILE *file_src;
         char *buf, *cwd, *msg;
-        int fd;
+        int fd, rd, wr;
         __off_t file_size;
         size_t mult, rest, cnt;
         struct stat file_meta;
@@ -336,7 +341,7 @@ copy(const char *dir_dev, const char *dir_src, const char *file)
                 return -1;
         }
 
-        if (cwdir (cwd, dir_src))
+        if (cwdir (cwd, dir_src, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH, file_meta.st_uid, file_meta.st_gid))
                 chdir (dir_src);
 
         file_src = fopen (file, "w");
@@ -364,15 +369,29 @@ copy(const char *dir_dev, const char *dir_src, const char *file)
                 }
                 buf = malloc (rest);
                 /* setvbuf (file_src, buf_index, _IOFBF, rest); */
-                fread (buf, rest, 1, file_dev);
-                fwrite (buf, rest, 1, file_src);
+                rd = fread (buf, rest, 1, file_dev);
+                wr = fwrite (buf, rest, 1, file_src);
+                if (rd != wr || rd <= 0 || wr <= 0)
+                {
+                        strcat (msg, "Error copying ");
+                        strcat (msg, file);
+                        report (msg, errno);
+                        return -1;
+                }
                 free (buf);
         }
         else
         {
                 buf = malloc (file_size);
-                fread (buf, file_size, 1, file_dev);
-                fwrite (buf, file_size, 1, file_src);
+                rd = fread (buf, file_size, 1, file_dev);
+                wr = fwrite (buf, file_size, 1, file_src);
+                if (rd != wr || rd <= 0 || wr <= 0)
+                {
+                        strcat (msg, "Error copying ");
+                        strcat (msg, file);
+                        report (msg, errno);
+                        return -1;
+                }
                 free (buf);
         }
 
@@ -414,8 +433,11 @@ read_dir (const char *from_path, char *to_path)
 {
         DIR *dir = NULL;
         struct dirent *entry;
+        struct stat sb;
 
         dir = opendir (from_path);
+        stat (from_path, &sb);
+
         while ((entry = readdir (dir)) != NULL)
         {
                 if (entry->d_type == DT_DIR)
@@ -425,7 +447,7 @@ read_dir (const char *from_path, char *to_path)
                         else
                         {
                                 chdir (entry->d_name);
-                                read_dir (getcwd (NULL, 0), cwdir (to_path, entry->d_name));
+                                read_dir (getcwd (NULL, 0), cwdir (to_path, entry->d_name, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH, sb.st_uid, sb.st_gid));
                                 chdir ("..");
                         }
                 }
@@ -562,7 +584,6 @@ void
 read_args (int argc, char *argv[])
 {
         char c;
-        const char *conf_path, *home;
         /* String with list of short options. */
         const char *short_options = "fi:h";
         int option_index = 0;
@@ -580,13 +601,11 @@ read_args (int argc, char *argv[])
                  * The home directory is used for read the configuration file.
                  */
                 pw = getpwuid (getuid ());
-                home = pw->pw_dir;
-                
 
         /* If no arguments, just run. */
         if (argc == 1)
         {
-                read_option (home);
+                read_option (pw->pw_dir, pw->pw_uid, pw->pw_gid);
 
                 daemon (0, 0);
 
@@ -608,8 +627,7 @@ read_args (int argc, char *argv[])
                         switch (c)
                         {
                                 case 'f':
-                                        conf_path = optarg;
-                                        read_option (conf_path);
+                                        read_option (optarg, pw->pw_uid, pw->pw_gid);
 
                                         /* Start the copy. */
                                         chdir (dev_path);
@@ -629,9 +647,9 @@ read_args (int argc, char *argv[])
                                          * \todo Improve the install() function.
                                          */
                                         if (optarg)
-                                                install_conf(optarg);
+                                                install_conf(optarg, pw->pw_uid, pw->pw_gid);
                                         else
-                                                install_conf(home);
+                                                install_conf(pw->pw_dir,pw->pw_uid, pw->pw_gid);
                                         break;
 
                                 default:
