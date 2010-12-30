@@ -1,4 +1,5 @@
- o 6 Build .configure.
+ x 6 Build .configure.
+        Yeah! Now, autotools works!
 
  o 3 Write README e INSTALL.
 
