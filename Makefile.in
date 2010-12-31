@@ -23,26 +23,36 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-CC      = gcc
-FLAGS   = -ggdb -Wall -pass-exit-codes
-LIB     = -lconfuse -lreadline
+CC          = @CC@
+FLAGS       = @CFLAGS@ -ggdb -Wall -pass-exit-codes
+INSTALL     = @INSTALL@
+LIB         = -lconfuse -lreadline
+PREFIX      = @prefix@
 
 # INFILE is the source code to be compiled.
-INFILE  = src/cpusb.c
-
+SRC = src/
+INFILE  = cpusb.c
 # OUTFILE is the path and name of binary
-OUTFILE = build/cpusb
+BUILD = build/
+OUTFILE = cpusb
 
 all: build build-doc
 	@echo 'Finished.'
 
 build:
 	mkdir build/
-	$(CC) $(FLAGS) $(LIB) -o $(OUTFILE) $(INFILE)
+	$(CC) $(FLAGS) $(LIB) -o $(BUILD)$(OUTFILE) $(SRC)$(INFILE)
 
 build-doc:
 	mkdir -p doc/devel/
 	doxygen doxyfile
+
+install:
+	install -d $(PREFIX)/bin
+	install -m 0755 $(BUILD)$(OUTFILE) $(PREFIX)/bin
+
+uninstall:
+	rm $(PREFIX)/bin/$(OUTFILE)
 
 # This target is for developers, just clean e compile the source code again.
 # Turns the debug task little quicker.

@@ -6,7 +6,7 @@ AC_INIT([cpusb], [0.001], [willian@ufpa.br])
 AC_CONFIG_SRCDIR([src/cpusb.c])
 
 # Checks for programs.
-AC_PROG_CC
+AC_PROG_CC([gcc cc])
 
 # Checks for libraries.
 AC_CHECK_LIB([confuse], [read_option])

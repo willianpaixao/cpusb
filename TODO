@@ -1,16 +1,11 @@
- x 6 Build .configure.
-        Yeah! Now, autotools works!
-
  o 3 Write README e INSTALL.
 
  o 3 Include default values for paths and configuration.
 
- x 4 Implement a log file, in /var.
-        - It works well.
-
  o 4 Write start/stop scripts in init.d
 
- o 4 Implement install target in Makefile.
+ x 4 Implement install target in Makefile.
+        - YEAH! ./configure, make and make install works!
 
  o 3 Create .tar.bz2 package.
 
