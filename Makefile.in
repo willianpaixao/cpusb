@@ -4,7 +4,7 @@
 # \date 2010-05-17
 # \file Makefile
 # \version 0.001
-# \brief Yet do all.
+# \brief Compile the code and build packages.
 #
 # An automatic synchronizer for removable media. 
 # Copyright (C) 2010 Willian Paixao <willian@ufpa.br>
@@ -23,36 +23,43 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+PACKAGE     = @PACKAGE_NAME@
+VERSION     = @PACKAGE_VERSION@
+
 CC          = @CC@
 FLAGS       = @CFLAGS@ -ggdb -Wall -pass-exit-codes
-INSTALL     = @INSTALL@
-LIB         = -lconfuse -lreadline
+LIB         = @LIBS@ -lconfuse -lreadline
 PREFIX      = @prefix@
 
+#Variables used in documentation build process
+DOXYGEN     = @DOXYGEN@
+
 # INFILE is the source code to be compiled.
-SRC = src/
-INFILE  = cpusb.c
+SRC         = src/
+INFILE      = cpusb.c
+
 # OUTFILE is the path and name of binary
-BUILD = build/
-OUTFILE = cpusb
+BUILD       = build/
+OUTFILE     = cpusb
+OTHERSFILES = configure doxyfile GPLv3 INSTALL Makefile.in README src TODO 
 
 all: build build-doc
 	@echo 'Finished.'
 
 build:
-	mkdir build/
+	mkdir -pv $(BUILD)$(PACKAGE)-$(VERSION)
 	$(CC) $(FLAGS) $(LIB) -o $(BUILD)$(OUTFILE) $(SRC)$(INFILE)
 
 build-doc:
-	mkdir -p doc/devel/
+	mkdir -pv doc/devel/
 	doxygen doxyfile
 
 install:
-	install -d $(PREFIX)/bin
-	install -m 0755 $(BUILD)$(OUTFILE) $(PREFIX)/bin
+	install -v -d $(PREFIX)/bin
+	install -v -m 0755 $(BUILD)$(OUTFILE) $(PREFIX)/bin
 
 uninstall:
-	rm $(PREFIX)/bin/$(OUTFILE)
+	rm -v $(PREFIX)/bin/$(OUTFILE)
 
 # This target is for developers, just clean e compile the source code again.
 # Turns the debug task little quicker.
@@ -63,10 +70,25 @@ clean: clean-build clean-doc
 	@echo 'All cleaned.'
 
 clean-build:
-	rm -rf build/
+	rm -rfv $(BUILD)
 	@echo 'Build clean.'
 
 clean-doc:
 	rm -rf doc/
 	@echo 'Documentation clean.'
+
+tar-pkg:
+	cp -av $(OTHERSFILES) $(BUILD)$(PACKAGE)-$(VERSION)
+	cd $(BUILD) && tar -cf $(PACKAGE)-$(VERSION).tar $(PACKAGE)-$(VERSION)
+	@echo 'Done.'
+
+tarbz2-pkg:
+	cp -av $(OTHERSFILES) $(BUILD)$(PACKAGE)-$(VERSION)
+	cd $(BUILD) && tar -cjf $(PACKAGE)-$(VERSION).tar.bz2 $(PACKAGE)-$(VERSION)
+	@echo 'Done.'
+
+targz-pkg:
+	cp -av $(OTHERSFILES) $(BUILD)$(PACKAGE)-$(VERSION)
+	cd $(BUILD) && tar -czf $(PACKAGE)-$(VERSION).tar.gz $(PACKAGE)-$(VERSION)
+	@echo 'Done.'
 

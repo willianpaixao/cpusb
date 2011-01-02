@@ -4,9 +4,11 @@
 AC_PREREQ([2.67])
 AC_INIT([cpusb], [0.001], [willian@ufpa.br])
 AC_CONFIG_SRCDIR([src/cpusb.c])
+AC_CONFIG_FILES([doxyfile])
 
 # Checks for programs.
 AC_PROG_CC([gcc cc])
+AC_CHECK_PROGS([DOXYGEN], [doxygen])
 
 # Checks for libraries.
 AC_CHECK_LIB([confuse], [read_option])

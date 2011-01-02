@@ -4,9 +4,6 @@
 
  o 4 Write start/stop scripts in init.d
 
- x 4 Implement install target in Makefile.
-        - YEAH! ./configure, make and make install works!
-
  o 3 Create .tar.bz2 package.
 
  o 4 Create .deb package.
