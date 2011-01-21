@@ -48,6 +48,12 @@
  */
 #define Kb 1024
 
+/**
+ * \def LOG_PATH
+ * Where put the log file
+ */
+#define LOG_PATH "/var/log"
+
 /* 
  * The includes of life.
  *
@@ -106,7 +112,7 @@ report (const char *msg, const int err)
         FILE *log_file;
 
         cwd = getcwd (NULL, 0);
-        chdir ("/var/log");
+        chdir (LOG_PATH);
 
         log_file = fopen ("cpusb", "w");
 
@@ -568,7 +574,6 @@ void cpusb_daemon ()
 
                 if (event->mask & IN_CLOSE_WRITE || event->mask & IN_ATTRIB)
                 {
-                        printf ("\n\nops.. permissions changed\n");
                         /* Start the copy. */
                         chdir (dev_path);
                         read_dir (dev_path, src_path);

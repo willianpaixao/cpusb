@@ -1,0 +1,13 @@
+Package: cpusb
+Version: 0.001-1
+Architecture: amd64
+Maintainer: Willian Paixao <willian@ufpa.br>
+Installed-Size: 76
+Section: 1
+Priority: extra
+Homepage: http://www.laps.ufpa.br/willian/homepage/projects/cpusb/index.html
+Description: An automatic synchronizer for removable media
+ If you use more than one computer, Digital Camera or other media device,
+ you transfer data among then. If you do this, you have a problem:
+ "how to organize your files?"
+ cpusb solve yours problems!

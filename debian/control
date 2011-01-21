@@ -1,0 +1,18 @@
+Source: cpusb
+Section: 1
+Priority: extra
+Maintainer: Willian Paixao <willian@ufpa.br>
+Build-Depends: debhelper (>= 7.0.50~), autotools-dev, lib32asound2, libreadline6, libgl1-mesa-glx, mime-support, gawk, libasound2
+Standards-Version: 3.8.4
+Homepage: http://www.laps.ufpa.br/willian/homepage/projects/cpusb/index.html
+Vcs-Git: git://github.com/willianpaixao/cpusb.git
+Vcs-Browser: https://github.com/willianpaixao/cpusb
+
+Package: cpusb
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: An automatic synchronizer for removable media
+ If you use more than one computer, Digital Camera or other media device, 
+ you transfer data among then. If you do this, you have a problem: 
+ "how to organize your files?"
+ cpusb solve yours problems!

@@ -4,9 +4,3 @@
 
  o 4 Write start/stop scripts in init.d
 
- o 3 Create .tar.bz2 package.
-
- o 4 Create .deb package.
-
- o 6 Create .rpm package.
-
